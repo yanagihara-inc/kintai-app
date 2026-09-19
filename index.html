@@ -28,14 +28,60 @@
     .site-options { display:grid; gap:8px; margin:10px 0; }.site-option { display:flex; gap:10px; align-items:center; padding:11px; border:1px solid var(--line); border-radius:9px; color:var(--ink); }.site-option input { width:18px; height:18px; }
     h2 { font-size:16px; margin:28px 3px 10px; } .history { border:1px solid var(--line); border-radius:13px; overflow:hidden; } .row { display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; padding:13px 14px; border-bottom:1px solid var(--line); font-size:14px; } .row:last-child { border:0; } .row .time { font-weight:700; font-variant-numeric:tabular-nums; } .tag { padding:4px 8px; font-size:11px; border-radius:99px; background:#e7f4ef; color:var(--green); } .tag.end { background:#fff0df; color:#a65014; }.empty { color:var(--muted); text-align:center; padding:24px; font-size:14px; }.report { width:100%; border-collapse:collapse; font-size:12px; margin:10px 0; }.report th,.report td { padding:8px 4px; border-bottom:1px solid var(--line); text-align:left; }.report th { color:var(--muted); font-weight:500; }.record-actions button { margin-left:6px; padding:4px 7px; font-size:11px; border-radius:6px; background:#edf1ef; }.record-actions .remove-record { color:#b43e33; }
     dialog { width:min(92vw,460px); border:0; border-radius:18px; padding:0; box-shadow:0 15px 50px #001b1370; } dialog::backdrop { background:#001b1366; } .modal { padding:22px; } .modal h2 { margin:0 0 16px; font-size:19px; }.field { display:block; margin:13px 0; font-size:13px; color:var(--muted); }.field input { width:100%; padding:11px; border:1px solid var(--line); border-radius:9px; margin-top:5px; color:var(--ink); }.modal-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }.secondary,.primary { padding:10px 14px; border-radius:9px; }.secondary { background:#edf1ef; color:var(--ink); }.primary { background:var(--green); color:#fff; }.admin-list { margin:15px 0; padding:0; list-style:none; }.admin-list li { display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line); }.delete { color:#b43e33; background:none; font-size:13px; }.export { width:100%; margin-top:8px; padding:13px; background:var(--deep); color:white; border-radius:10px; font-weight:700; }.hint { font-size:12px; color:var(--muted); line-height:1.6; }
+    /* Mobile-first visual refresh */
+    :root { --green:#0f8068; --deep:#073f36; --cream:#edf3f0; --line:#d9e5df; --ink:#16241f; --muted:#68766f; --orange:#e87824; }
+    body { background:linear-gradient(145deg,#e7f0ec 0%,#f7f3eb 100%); }
+    .shell { position:relative; overflow:hidden; background:#f8faf9; }
+    header { position:relative; overflow:hidden; padding:calc(18px + env(safe-area-inset-top)) 20px 34px; background:linear-gradient(145deg,#073f36 0%,#0f8068 68%,#32a085 100%); }
+    header::before,header::after { content:""; position:absolute; border-radius:50%; background:#ffffff12; pointer-events:none; }
+    header::before { width:190px; height:190px; right:-70px; top:-95px; }
+    header::after { width:120px; height:120px; left:-60px; bottom:-70px; }
+    .brand { position:relative; z-index:1; gap:12px; }
+    .brand-title { display:flex; align-items:center; gap:11px; min-width:0; }
+    .brand-mark { display:grid; place-items:center; flex:0 0 46px; width:46px; height:46px; border-radius:14px; background:#fff; box-shadow:0 8px 24px #002c2230; font-size:25px; }
+    .brand-copy { min-width:0; }
+    .brand h1 { line-height:1.15; font-size:20px; }
+    #companyName { display:block; max-width:230px; margin-top:5px; overflow:hidden; color:#d8f3ea; font-size:11px; font-weight:500; letter-spacing:.03em; text-overflow:ellipsis; white-space:nowrap; }
+    .brand button { flex:0 0 auto; border:1px solid #ffffff30; background:#ffffff18; font-weight:700; backdrop-filter:blur(8px); }
+    .today { position:relative; z-index:1; margin-top:28px; color:#d5eee7; font-size:13px; font-weight:600; }
+    #clock { position:relative; z-index:1; margin-top:0; font-size:48px; line-height:1.08; text-shadow:0 3px 18px #002c2230; }
+    main { position:relative; z-index:2; margin-top:-16px; padding:0 16px calc(42px + env(safe-area-inset-bottom)); }
+    .person { min-height:76px; margin:0 0 23px; padding:14px 16px; border:1px solid #dce9e3; border-radius:18px; background:#fff; box-shadow:0 10px 28px #123d3120; }
+    .person label { margin-bottom:4px; color:#789087; font-size:11px; font-weight:700; letter-spacing:.08em; }
+    .person select { width:min(62vw,300px); max-width:none; padding:2px 24px 2px 0; outline:none; font-size:19px; text-align:left; }
+    .person > span { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:#e8f5f0; color:var(--green); font-size:17px; }
+    .lead { margin:0 4px 13px; color:#718078; font-size:13px; font-weight:600; }
+    .actions { gap:12px; }
+    .punch { position:relative; min-height:128px; overflow:hidden; padding:16px; border:0; border-radius:20px; box-shadow:0 8px 20px #183c3214; }
+    .punch::after { content:""; position:absolute; width:74px; height:74px; right:-24px; bottom:-32px; border-radius:50%; background:currentColor; opacity:.06; }
+    .punch.start { border:1px solid #bfe3d7; background:linear-gradient(145deg,#fff 0%,#eaf8f3 100%); color:#096a58; }
+    .punch.end { border:1px solid #f2d1b5; background:linear-gradient(145deg,#fff 0%,#fff1e4 100%); color:#b85212; }
+    .punch .icon { display:grid; place-items:center; width:44px; height:44px; margin-bottom:12px; border-radius:14px; background:#fff; box-shadow:0 5px 14px #143a3015; font-size:25px; }
+    .punch strong,.punch.end strong { color:inherit; font-size:19px; }
+    .punch small { margin-top:3px; color:#6d7a74; }
+    .punch:focus-visible { outline:3px solid #2aa78a; outline-offset:3px; }
+    .notice { min-height:0; margin:14px 0 0; border-radius:12px; }
+    .notice:not(:empty) { min-height:42px; padding:12px; background:#e7f5ef; box-shadow:inset 0 0 0 1px #cde7dc; }
+    h2 { display:flex; align-items:center; gap:8px; margin:27px 3px 11px; font-size:16px; }
+    h2::before { content:""; display:block; width:5px; height:18px; border-radius:5px; background:linear-gradient(var(--green),#55b99e); }
+    .history { border:1px solid #e0e8e4; border-radius:17px; background:#fff; box-shadow:0 7px 20px #143a300d; }
+    .row { min-height:65px; padding:14px 16px; }
+    .row .time { font-size:17px; }
+    .tag { display:inline-block; min-width:44px; padding:5px 9px; text-align:center; font-weight:700; }
+    .install { border:1px solid #cbe5db; border-radius:13px; background:#fff; box-shadow:0 5px 14px #143a300d; }
+    dialog { border-radius:22px; }
+    .modal { padding:24px 21px; }
+    .primary,.secondary,.export { min-height:44px; border-radius:12px; font-weight:700; }
+    @media (min-width:600px) { body { padding:24px 0; } .shell { min-height:calc(100vh - 48px); border-radius:28px; } }
+    @media (max-width:370px) { #clock { font-size:43px; } .punch { min-height:116px; padding:13px; } .brand h1 { font-size:18px; } }
   </style>
 </head>
 <body>
   <div class="shell">
-    <header><div class="brand"><h1>らくらく勤怠 <span id="companyName">会社名を設定</span></h1><button id="adminOpen" hidden>管理・集計</button></div><div class="today" id="today"></div><div id="clock">--:--</div></header>
+    <header><div class="brand"><div class="brand-title"><span class="brand-mark" aria-hidden="true">🕘</span><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><button id="adminOpen" hidden>管理・集計</button></div><div class="today" id="today"></div><div id="clock">--:--</div></header>
     <main>
       <div class="person"><div><label>打刻する人</label><select id="employee"></select></div><span>⌄</span></div>
-      <p class="lead">該当するボタンを1回押すだけで記録されます。</p>
+      <p class="lead">打刻する項目を選んでください</p>
       <div class="actions">
         <button class="punch start" data-type="出勤"><span class="icon">☀️</span><strong>出勤</strong><small>会社へ出勤</small></button>
         <button class="punch start" data-type="直行"><span class="icon">🚃</span><strong>直行</strong><small>現場へ直接向かう</small></button>
