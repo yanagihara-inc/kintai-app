@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="らくらく勤怠" />
   <link rel="manifest" href="manifest.webmanifest" />
-  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
   <title>らくらく勤怠</title>
   <style>
     :root { --green:#146c5b; --deep:#0d4037; --cream:#f7f8f4; --line:#dce4df; --ink:#19231f; --muted:#69756f; --orange:#eb8d35; }
@@ -38,7 +38,7 @@
     header::after { width:120px; height:120px; left:-60px; bottom:-70px; }
     .brand { position:relative; z-index:1; gap:12px; }
     .brand-title { display:flex; align-items:center; gap:11px; min-width:0; }
-    .brand-mark { display:grid; place-items:center; flex:0 0 46px; width:46px; height:46px; border-radius:14px; background:#fff; box-shadow:0 8px 24px #002c2230; font-size:25px; }
+    .brand-mark { display:block; flex:0 0 46px; width:46px; height:46px; border:2px solid #ffffff55; border-radius:14px; background:#fff; box-shadow:0 8px 24px #002c2230; object-fit:cover; }
     .brand-copy { min-width:0; }
     .brand h1 { line-height:1.15; font-size:20px; }
     #companyName { display:block; max-width:230px; margin-top:5px; overflow:hidden; color:#d8f3ea; font-size:11px; font-weight:500; letter-spacing:.03em; text-overflow:ellipsis; white-space:nowrap; }
@@ -78,7 +78,7 @@
 </head>
 <body>
   <div class="shell">
-    <header><div class="brand"><div class="brand-title"><span class="brand-mark" aria-hidden="true">🕘</span><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><button id="adminOpen" hidden>管理・集計</button></div><div class="today" id="today"></div><div id="clock">--:--</div></header>
+    <header><div class="brand"><div class="brand-title"><img class="brand-mark" src="icon-192.png" alt=""><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><button id="adminOpen" hidden>管理・集計</button></div><div class="today" id="today"></div><div id="clock">--:--</div></header>
     <main>
       <div class="person"><div><label>打刻する人</label><select id="employee"></select></div><span>⌄</span></div>
       <p class="lead">打刻する項目を選んでください</p>
