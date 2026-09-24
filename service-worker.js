@@ -1,4 +1,4 @@
-const CACHE = 'rakuraku-kintai-v19';
+const CACHE = 'rakuraku-kintai-v21';
 const APP_FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', event => {
