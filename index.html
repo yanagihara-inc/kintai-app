@@ -73,6 +73,13 @@
     .tag { display:inline-block; min-width:44px; padding:5px 9px; text-align:center; font-weight:700; }
     .install { border:1px solid #cbe5db; border-radius:13px; background:#fff; box-shadow:0 5px 14px #143a300d; }
     .personal-view { width:100%; margin:-10px 0 20px; padding:11px 14px; border:1px solid #cfe1da; border-radius:13px; background:#fff; color:var(--deep); font-weight:700; box-shadow:0 5px 14px #143a300d; }
+    .holiday-open { width:100%; margin:-12px 0 18px; padding:9px 12px; border:1px solid #f0c98d; border-radius:11px; background:#fffaf0; color:#8a5415; font-size:13px; font-weight:700; }
+    .calendar-head { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:12px; color:var(--muted); font-size:11px; text-align:center; }
+    .calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:5px; }
+    .calendar-day { min-height:48px; padding:5px 3px; border:1px solid var(--line); border-radius:8px; background:#fff; font-size:12px; text-align:center; }
+    .calendar-day.blank { border-color:transparent; background:transparent; }
+    .calendar-day.holiday { border-color:#f2a9a0; background:#fff0ee; color:#b42318; font-weight:700; }
+    .calendar-day small { display:block; margin-top:2px; font-size:8px; line-height:1.15; overflow-wrap:anywhere; }
     .first-pin-note { margin:12px 0; padding:12px 13px; border:1px solid #f0cf9e; border-radius:12px; background:#fff6e8; color:#8a4b12; font-size:13px; font-weight:700; line-height:1.6; }
     .punch.away { border:1px solid #c7dced; background:linear-gradient(145deg,#fff 0%,#edf6fc 100%); color:#24658f; }
     .punch.return { border:1px solid #d9d0ec; background:linear-gradient(145deg,#fff 0%,#f4effb 100%); color:#6e4b98; }
@@ -106,6 +113,7 @@
     <main>
       <div class="person"><div><label>打刻する人</label><select id="employee"></select></div><span>⌄</span></div>
       <button class="personal-view" id="personalOpen">自分の1か月分の勤怠を確認</button>
+      <button class="holiday-open" id="holidayOpen">📅 休日カレンダーを表示</button>
       <p class="lead">打刻する項目を選んでください</p>
       <div class="actions">
         <button class="punch start" data-type="出勤"><span class="icon">☀️</span><strong>出勤</strong><small>会社へ出勤</small></button>
@@ -124,6 +132,7 @@
   <dialog id="adminDialog"><div class="modal" id="adminContent"></div></dialog>
   <dialog id="siteDialog"><div class="modal" id="siteContent"></div></dialog>
   <dialog id="personalDialog"><div class="modal" id="personalContent"></div></dialog>
+  <dialog id="holidayDialog"><div class="modal"><h2>休日カレンダー</h2><label class="field">表示する月<input id="holidayMonth" type="month"></label><div id="holidayCalendar"></div><div class="modal-actions"><button class="secondary" onclick="holidayDialog.close()">閉じる</button></div></div></dialog>
   <script src="app-config.js"></script>
   <script>
     const SELECTED_EMPLOYEE_KEY='rakuraku-kintai-selected-employee';
@@ -146,7 +155,7 @@
     function saveConfig(){const keys=['employees','sites','holidays','pinConfiguredNames','companyName','admins','closingDay','overtimeStart'],settings={};keys.forEach(key=>settings[key]=data[key]);localStorage.setItem(CONFIG_KEY,JSON.stringify({version:configVersion,data:settings}));}
     function callShared(payload){return new Promise(resolve=>{if(!API)return resolve({ok:true});if(adminPin)payload.adminName=$('#employee').value;const callback='kintaiWrite_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');window[callback]=result=>{delete window[callback];script.remove();resolve(result);};script.src=`${API}?payload=${encodeURIComponent(JSON.stringify(payload))}&callback=${callback}`;script.onerror=()=>{delete window[callback];script.remove();resolve({ok:false,error:'通信を確認してください'});};document.head.appendChild(script);});}
     function postShared(payload){callShared(payload).then(result=>{if(!result.ok){$('#notice').textContent=`共有保存に失敗しました：${result.error||'設定を確認してください'}`;loadShared();}});}
-    function setLoading(active,message='起動中\nデータを読み込んでいます',error=false){const screen=$('#loadingScreen');screen.hidden=!active;screen.classList.toggle('error',error);$('#loadingText').innerHTML=esc(message).replaceAll('\n','<br>');$('#loadingRetry').hidden=!error;document.querySelectorAll('.punch,#employee,#adminOpen,#personalOpen,#nightCount').forEach(element=>element.disabled=active);if(!active){updateNightButton();updatePunchButtons();}}
+    function setLoading(active,message='起動中\nデータを読み込んでいます',error=false){const screen=$('#loadingScreen');screen.hidden=!active;screen.classList.toggle('error',error);$('#loadingText').innerHTML=esc(message).replaceAll('\n','<br>');$('#loadingRetry').hidden=!error;document.querySelectorAll('.punch,#employee,#adminOpen,#personalOpen,#holidayOpen,#nightCount').forEach(element=>element.disabled=active);if(!active){updateNightButton();updatePunchButtons();}}
     function verifyAdmin(pin){const callback='kintaiAdmin_'+Date.now(),script=document.createElement('script');window[callback]=result=>{delete window[callback];script.remove();if(result.ok){adminPin=pin;data={...data,...(result.data||{})};save();admin();}else alert('管理者名または暗証番号が違います');};script.src=`${API}?action=verifyAdmin&name=${encodeURIComponent($('#employee').value)}&pin=${encodeURIComponent(pin)}&callback=${callback}`;script.onerror=()=>alert('管理者確認に失敗しました');document.head.appendChild(script);}
     function loadShared(){setLoading(true);if(!API){setLoading(false);$('#notice').textContent='起動しました';return;}const callback='kintaiData_'+Date.now();window[callback]=payload=>{delete window[callback];script.remove();if(payload.ok){data={...data,...payload.data};configVersion=String(payload.data.configVersion||configVersion);if(payload.data.configChanged)saveConfig();render();setLoading(false);$('#notice').textContent=payload.data.configChanged?'設定と当日の打刻を更新しました':'当日の打刻を更新しました';setTimeout(()=>$('#notice').textContent='',2500);}else setLoading(true,payload.error||'データを読み込めません',true);};const script=document.createElement('script');script.src=`${API}?action=bootstrap&configVersion=${encodeURIComponent(configVersion)}&callback=${callback}`;script.onerror=()=>{delete window[callback];script.remove();setLoading(true,'データを読み込めません\n通信を確認してください',true);};document.head.appendChild(script);}
     function render(){ const sel=$('#employee'), current=sel.value||localStorage.getItem(SELECTED_EMPLOYEE_KEY); sel.innerHTML=data.employees.map(n=>`<option>${n}</option>`).join(''); if(data.employees.includes(current))sel.value=current; localStorage.setItem(SELECTED_EMPLOYEE_KEY,sel.value); $('#companyName').textContent=data.companyName||'会社名を設定';$('#adminOpen').hidden=!data.admins.includes(sel.value);const who=sel.value, today=keyDate(new Date()); const rows=data.records.filter(r=>r.name===who&&r.date===today).sort((a,b)=>b.at-a.at),todaySites=[...new Set(rows.flatMap(r=>r.sites||[]).filter(Boolean))];$('#todaySites').innerHTML=todaySites.length?todaySites.map(site=>`<span class="today-site-name">${esc(site)}</span>`).join(''):'未選択'; $('#history').innerHTML=rows.length?rows.map(r=>`<div class="row"><div><span class="tag ${['退勤','直帰'].includes(r.type)?'end':''}">${r.type}</span>${r.expectedReturn?`<div class="hint">戻り予定：${esc(r.expectedReturn)}</div>`:''}</div><div class="time">${new Date(r.at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div></div>`).join(''):'<div class="empty">まだ打刻はありません</div>'; }
@@ -155,6 +164,9 @@
     const baseRenderWithNightCount=render;render=function(){baseRenderWithNightCount();updateNightButton();updatePunchButtons();};
     function tick(){const d=new Date();$('#today').textContent=jpDate(d);$('#clock').textContent=d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});} tick();setInterval(tick,1000);render();loadShared();
     $('#employee').addEventListener('change',()=>{localStorage.setItem(SELECTED_EMPLOYEE_KEY,$('#employee').value);render();});
+    $('#holidayOpen').addEventListener('click',()=>{const month=keyDate(new Date()).slice(0,7);$('#holidayMonth').value=month;renderHolidayCalendar(month);$('#holidayDialog').showModal();});
+    $('#holidayMonth').addEventListener('change',event=>renderHolidayCalendar(event.target.value));
+    function renderHolidayCalendar(month){if(!/^\d{4}-\d{2}$/.test(month))return;const [year,monthNumber]=month.split('-').map(Number),first=new Date(`${month}-01T00:00:00+09:00`),firstDay=first.getDay(),days=new Date(year,monthNumber,0).getDate(),cells=[];for(let index=0;index<firstDay;index++)cells.push('<div class="calendar-day blank"></div>');for(let day=1;day<=days;day++){const date=`${month}-${String(day).padStart(2,'0')}`,holiday=data.holidays.find(item=>item.date===date);cells.push(`<div class="calendar-day${holiday?' holiday':''}">${day}${holiday?`<small>${esc(holiday.name)}</small>`:''}</div>`);}$('#holidayCalendar').innerHTML=`<div class="calendar-head"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div><div class="calendar-grid">${cells.join('')}</div>`;}
     $('#nightCount').addEventListener('click',()=>{const now=new Date();if(!confirm(`夜勤1回を ${now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})} に記録しますか？`))return;recordPunch('夜勤',[],null,'',keyDate(now),now);});
     document.querySelectorAll('.punch').forEach(b=>b.addEventListener('click',()=>authorizePunch(b.dataset.type)));
     function startSitesForDate(date){const name=$('#employee').value,start=data.records.filter(r=>r.name===name&&r.date===date&&['出勤','直行'].includes(r.type)).sort((a,b)=>a.at-b.at)[0];return [...(start?.sites||[])];}
