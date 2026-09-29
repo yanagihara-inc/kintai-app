@@ -1,1 +1,1 @@
-window.KINTAI_API_URL = 'https://script.google.com/macros/s/AKfycbxa2GRDcMkPN-O_ZA7UWKUww5RbFdurfcOvbGmVUTqn4X-O7vqJzBnZrUI15pKPN7gO_A/exec';
+window.KINTAI_API_URL = 'https://script.google.com/macros/s/AKfycbxE8-Ti1Iqq7BS-zCVZiiEv7bJk_m-uPWTBVEd1mD043qTSqAOVVgelkw6OGcoCo7ga2w/exec';
