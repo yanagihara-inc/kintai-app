@@ -82,8 +82,8 @@
     .header-tools { display:flex; gap:6px; align-items:center; }
     .who-open { flex:0 0 auto; padding:8px 10px; border:1px solid #ffffff55; border-radius:10px; background:#ffffff18; color:#fff; font-size:11px; font-weight:700; backdrop-filter:blur(8px); }
     .who-table { width:100%; border-collapse:collapse; font-size:13px; }.who-table th,.who-table td { padding:10px 6px; border-bottom:1px solid var(--line); text-align:left; }.who-table th { color:var(--muted); font-size:11px; }
-    @keyframes buttonPress { 0%{transform:scale(1)} 35%{transform:scale(.94);filter:brightness(.93)} 60%{transform:scale(.94);filter:brightness(.93)} 100%{transform:scale(1);filter:brightness(1)} }
-    button.press-animate { animation:buttonPress .48s ease; }
+    @keyframes buttonPress { 0%{transform:translateY(0) scale(1);filter:brightness(1);box-shadow:0 0 0 0 #2fbd9680} 28%{transform:translateY(-9px) scale(1.07);filter:brightness(1.12);box-shadow:0 0 0 7px #2fbd9638} 52%{transform:translateY(2px) scale(.98);filter:brightness(.98);box-shadow:0 0 0 13px #2fbd9600} 72%{transform:translateY(-4px) scale(1.03)} 88%{transform:translateY(1px) scale(.995)} 100%{transform:translateY(0) scale(1);filter:brightness(1);box-shadow:0 0 0 0 #2fbd9600} }
+    button.press-animate { animation:buttonPress .68s cubic-bezier(.2,.8,.25,1); }
     @media (prefers-reduced-motion:reduce) { button.press-animate { animation:none; } }
     .calendar-head { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:12px; color:var(--muted); font-size:11px; text-align:center; }
     .calendar-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:5px; }
