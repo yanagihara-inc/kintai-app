@@ -1,4 +1,4 @@
-const CACHE='rakuraku-kintai-shell-v64';
+const CACHE='rakuraku-kintai-shell-v65';
 const APP_FILES=['./','./index.html','./app-config.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 
 self.addEventListener('install',event=>{
