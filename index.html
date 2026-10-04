@@ -44,12 +44,12 @@
     #companyName { display:block; max-width:250px; margin-top:6px; overflow:hidden; color:#e8fff8; font-size:15px; font-weight:700; letter-spacing:.03em; text-overflow:ellipsis; white-space:nowrap; }
     .brand button { flex:0 0 auto; border:1px solid #ffffff30; background:#ffffff18; font-weight:700; backdrop-filter:blur(8px); }
     #personalContent > [hidden] { display:none; }
-    .admin-tools { display:grid; flex:0 0 auto; gap:6px; }
-    .admin-tools button { width:100%; }
+    .admin-tools { display:grid; flex:0 0 auto; gap:4px; }
+    .brand .admin-tools button { width:100%; padding:4px 10px; line-height:1.3; }
     .today { position:relative; z-index:1; margin-top:28px; color:#d5eee7; font-size:13px; font-weight:600; }
     #clock { position:relative; z-index:1; margin-top:0; font-size:48px; line-height:1.08; text-shadow:0 3px 18px #002c2230; }
     main { position:relative; z-index:2; margin-top:-16px; padding:0 16px calc(42px + env(safe-area-inset-bottom)); }
-    .person { min-height:76px; margin:0 0 23px; padding:14px 16px; border:1px solid #dce9e3; border-radius:18px; background:#fff; box-shadow:0 10px 28px #123d3120; }
+    .person { min-height:58px; margin:0 0 23px; padding:7px 16px; border:1px solid #dce9e3; border-radius:18px; background:#fff; box-shadow:0 10px 28px #123d3120; }
     .person label { margin-bottom:4px; color:#789087; font-size:11px; font-weight:700; letter-spacing:.08em; }
     .person select { width:min(62vw,300px); max-width:none; padding:2px 24px 2px 0; outline:none; font-size:19px; text-align:left; }
     .person-name-line { display:flex; align-items:center; gap:7px; }
@@ -82,7 +82,7 @@
     .row .time { font-size:17px; }
     .tag { display:inline-block; min-width:44px; padding:5px 9px; text-align:center; font-weight:700; }
     .install { border:1px solid #cbe5db; border-radius:13px; background:#fff; box-shadow:0 5px 14px #143a300d; }
-    .personal-view { width:100%; margin:-10px 0 20px; padding:12px 14px; border:1px solid #669bc6; border-radius:13px; background:linear-gradient(135deg,#5796c7 0%,#75acd3 100%); color:#fff; font-weight:800; box-shadow:0 7px 17px #3e77a438; }
+    .personal-view { width:100%; margin:-10px 0 20px; padding:6px 14px; border:1px solid #669bc6; border-radius:13px; background:linear-gradient(135deg,#5796c7 0%,#75acd3 100%); color:#fff; font-weight:800; box-shadow:0 7px 17px #3e77a438; }
     .clock-line { position:relative; z-index:1; display:flex; align-items:center; justify-content:space-between; gap:10px; }
     .holiday-open { flex:0 0 auto; padding:8px 10px; border:1px solid #ffffff55; border-radius:10px; background:#ffffff18; color:#fff; font-size:11px; font-weight:700; backdrop-filter:blur(8px); }
     .header-tools { display:flex; gap:6px; align-items:center; }
@@ -157,12 +157,13 @@
     .primary,.secondary,.export { min-height:44px; border-radius:12px; font-weight:700; }
     @media (min-width:600px) { body { padding:24px 0; } .shell { min-height:calc(100vh - 48px); border-radius:28px; } }
     @media (max-width:370px) { #clock { font-size:43px; } .punch { min-height:116px; padding:13px; } .brand h1 { font-size:18px; } }
+      #gamesOpen[hidden] { display:none; }
   </style>
 </head>
 <body>
   <div class="shell">
     <div id="loadingScreen" class="loading-screen"><div class="loading-card"><div class="spinner"></div><p id="loadingText">起動中<br>データを読み込んでいます</p><button id="loadingRetry" hidden>もう一度読み込む</button></div></div>
-    <header><div class="brand"><div class="brand-title"><img class="brand-mark" src="icon-192.png" alt=""><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><div class="admin-tools"><button id="adminOpen" hidden>管理・集計</button><button class="animal-preview-open" id="animalPreviewOpen" type="button" hidden>🐾 動物を確認</button></div></div><div class="today" id="today"></div><div class="clock-line"><div id="clock">--:--</div><div class="header-tools"><button class="who-open" id="whoOpen">👤📍<br>誰どこ</button><button class="holiday-open" id="holidayOpen">📅 休日<br>カレンダー</button></div></div></header>
+    <header><div class="brand"><div class="brand-title"><img class="brand-mark" src="icon-192.png" alt=""><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><div class="admin-tools"><button id="adminOpen" hidden>管理・集計</button><button class="animal-preview-open" id="animalPreviewOpen" type="button" hidden>🐾 動物を確認</button></div></div><div class="today" id="today"></div><div class="clock-line"><div id="clock">--:--</div><div class="header-tools"><button class="who-open" id="whoOpen">👤📍<br>誰どこ</button><button class="who-open" id="gamesOpen" type="button" aria-label="暇つぶしアプリを開く" title="登録済みの本人端末からゲームアプリを開きます">🎯<br>暇つぶし</button><button class="holiday-open" id="holidayOpen">📅 休日<br>カレンダー</button></div></div></header>
     <main>
       <div class="person"><div><label>打刻する人</label><div class="person-name-line"><select id="employee"></select><span class="admin-badge" id="adminBadge" hidden>管理者</span></div></div></div>
       <button class="personal-view" id="personalOpen">今月の勤怠記録</button>
@@ -218,7 +219,7 @@
     function queueShared(payload){const queue=readPendingQueue(),key=`${payload.action}|${payload.name||''}|${payload.date||''}|${payload.type||''}|${payload.at||''}`,existing=queue.find(item=>item.key===key);if(existing){existing.payload=payload;existing.queuedAt=Date.now();}else queue.push({key,payload,queuedAt:Date.now()});writePendingQueue(queue);}
     async function postShared(payload){const result=await callShared(payload);if(result.ok){if(payload.action==='punch'&&result.id){const record=data.records.find(item=>item.name===payload.name&&item.date===payload.date&&item.type===payload.type&&item.at===payload.at);if(record)record.id=result.id;}return true;}if(result.networkError&&['punch','updateRecordSites'].includes(payload.action)){queueShared(payload);$('#notice').textContent='通信できないため端末に保存しました。通信回復後に自動送信します。';renderMissingPunchWarning();return false;}if(payload.action==='punch'&&String(result.error||'').includes('端末')){localStorage.removeItem(DEVICE_REGISTRATION_KEY);data.records=data.records.filter(record=>!(record.name===payload.name&&record.date===payload.date&&record.type===payload.type&&record.at===payload.at));render();}$('#notice').textContent=`共有保存に失敗しました：${result.error||'設定を確認してください'}`;return false;}
     async function flushPendingQueue(){if(!API||!navigator.onLine)return;let queue=readPendingQueue(),sent=0;for(const item of [...queue]){const result=await callShared(item.payload);if(!result.ok){if(!result.networkError){queue=queue.filter(value=>value.key!==item.key);$('#notice').textContent=`送信待ちデータを確認してください：${result.error||'保存できません'}`;}break;}queue=queue.filter(value=>value.key!==item.key);sent++;writePendingQueue(queue);}writePendingQueue(queue);if(sent)$('#notice').textContent=`通信回復後、送信待ち${sent}件を保存しました。`;}
-    function setLoading(active,message='起動中\nデータを読み込んでいます',error=false){const screen=$('#loadingScreen');screen.hidden=!active;screen.classList.toggle('error',error);$('#loadingText').innerHTML=esc(message).replaceAll('\n','<br>');$('#loadingRetry').hidden=!error;document.querySelectorAll('.punch,#employee,#adminOpen,#personalOpen,#holidayOpen,#whoOpen,#correctionOpen,#nightCount,#tripCount,#animalPreviewOpen').forEach(element=>element.disabled=active);if(!active){updateSupplementButtons();updatePunchButtons();}}
+    function setLoading(active,message='起動中\nデータを読み込んでいます',error=false){const screen=$('#loadingScreen');screen.hidden=!active;screen.classList.toggle('error',error);$('#loadingText').innerHTML=esc(message).replaceAll('\n','<br>');$('#loadingRetry').hidden=!error;document.querySelectorAll('.punch,#employee,#adminOpen,#personalOpen,#holidayOpen,#whoOpen,#gamesOpen,#correctionOpen,#nightCount,#tripCount,#animalPreviewOpen').forEach(element=>element.disabled=active);if(!active){updateSupplementButtons();updatePunchButtons();}}
     function verifyAdmin(pin){const callback='kintaiAdmin_'+Date.now(),script=document.createElement('script');window[callback]=result=>{delete window[callback];script.remove();if(result.ok){adminPin=pin;data={...data,...(result.data||{})};save();admin();}else alert('管理者名または暗証番号が違います');};script.src=`${API}?action=verifyAdmin&name=${encodeURIComponent($('#employee').value)}&pin=${encodeURIComponent(pin)}&callback=${callback}`;script.onerror=()=>alert('管理者確認に失敗しました');document.head.appendChild(script);}
     function loadShared(){setLoading(true);if(!API){setLoading(false);$('#notice').textContent='起動しました';return;}const callback='kintaiData_'+Date.now();window[callback]=payload=>{delete window[callback];script.remove();if(payload.ok){data={...data,...payload.data};const pendingPunches=readPendingQueue().filter(item=>item.payload.action==='punch').map(item=>item.payload),known=new Set(data.records.map(record=>`${record.name}|${record.date}|${record.type}|${record.at}`));pendingPunches.forEach(record=>{const key=`${record.name}|${record.date}|${record.type}|${record.at}`;if(!known.has(key))data.records.push({...record,pending:true});});configVersion=String(payload.data.configVersion||configVersion);if(payload.data.configChanged)saveConfig();render();setLoading(false);$('#notice').textContent=readPendingQueue().length?'送信待ちの打刻があります。通信回復後に自動送信します。':payload.data.configChanged?'設定と当日の打刻を更新しました':'当日の打刻を更新しました';flushPendingQueue();setTimeout(()=>{if(!readPendingQueue().length)$('#notice').textContent='';},2500);}else setLoading(true,payload.error||'データを読み込めません',true);};const script=document.createElement('script');script.src=`${API}?action=bootstrap&configVersion=${encodeURIComponent(configVersion)}&callback=${callback}`;script.onerror=()=>{delete window[callback];script.remove();setLoading(true,'データを読み込めません\n通信を確認してください',true);};document.head.appendChild(script);}
     function readDeviceRegistration(){try{const value=JSON.parse(localStorage.getItem(DEVICE_REGISTRATION_KEY)||'null');return value&&value.name&&value.deviceToken?value:null;}catch(_){return null;}}
@@ -307,4 +308,5 @@ $('#personalOpen').addEventListener('click',()=>{const dialog=$('#personalDialog
     window.addEventListener('online',()=>flushPendingQueue());
     let installEvent;const install=$('#install');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installEvent=event;install.hidden=false;});install.addEventListener('click',async()=>{if(!installEvent)return;installEvent.prompt();await installEvent.userChoice;install.hidden=true;installEvent=null;});window.addEventListener('appinstalled',()=>{install.hidden=true;});if('serviceWorker' in navigator)navigator.serviceWorker.register('./service-worker.js');
   </script>
+<script src="integration/games-loader.js"></script>
 </body></html>
