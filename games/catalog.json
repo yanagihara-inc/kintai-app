@@ -1,0 +1,50 @@
+{
+  "math": {
+    "title": "すうしきドロップ",
+    "file": "math-game.html",
+    "result": "math-drop-result",
+    "unit": "問"
+  },
+  "mole": {
+    "title": "数字もぐら",
+    "file": "number-mole.html",
+    "result": "number-mole-result",
+    "unit": "回"
+  },
+  "drop": {
+    "title": "ナンバードロップ",
+    "file": "number-drop.html",
+    "result": "number-drop-result",
+    "unit": "個"
+  },
+  "maze": {
+    "title": "三本道迷路",
+    "file": "three-paths.html",
+    "result": "three-paths-result",
+    "unit": "本"
+  },
+  "order": {
+    "title": "順番タップ",
+    "file": "order-tap.html",
+    "result": "order-game-result",
+    "unit": "個"
+  },
+  "color": {
+    "title": "色当て",
+    "file": "color-match.html",
+    "result": "color-game-result",
+    "unit": "問"
+  },
+  "chest": {
+    "title": "宝箱えらび",
+    "file": "treasure-choice.html",
+    "result": "chest-game-result",
+    "unit": "回"
+  },
+  "formwork": {
+    "title": "型枠の組立て",
+    "file": "formwork-game.html",
+    "result": "formwork-game-result",
+    "unit": "点"
+  }
+}
