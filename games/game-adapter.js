@@ -1,35 +1,41 @@
-// メンバー名のみ一時保持。本人確認は起動元の勤怠で再確認します。
-const launchParams=new URLSearchParams(location.search),attendanceLaunch=launchParams.get('fromAttendance')==='1';
-const bridgeWindow=attendanceLaunch?window.opener:(window.parent!==window?window.parent:null),embedded=attendanceLaunch||!!bridgeWindow;
-let API=embedded?'bridge':'local',playerName='',memberAuthorized=false,sequence=0,attendanceStandalone=false,transport='';
-const waiting=new Map(),nameInput=document.getElementById('employee'),label=document.getElementById('connectionLabel');
-const sessionId=launchParams.get('attendanceSession'),sessionKey='kintai-game-player-'+(sessionId||'legacy');
-let channel=null,readyTimer,connectionTimer;const connectionWaiters=[];
-if(embedded){
- nameInput.disabled=true;nameInput.value='';
- try{playerName=sessionStorage.getItem(sessionKey)||'';nameInput.value=playerName}catch{}
- label.textContent='勤怠アプリとの接続を確認中…';
- if(sessionId&&/^[a-zA-Z0-9-]{1,80}$/.test(sessionId)&&typeof BroadcastChannel!=='undefined'){channel=new BroadcastChannel('kintai-games-'+sessionId);channel.onmessage=e=>receive(e.data,'channel');}
- window.addEventListener('message',e=>{if(e.source!==bridgeWindow)return;const saved=launchParams.get('attendanceUrl');if(saved){try{if(e.origin!==new URL(saved).origin)return}catch{return}}receive(e.data,'opener')});
- readyTimer=setInterval(connect,700);connectionTimer=setTimeout(()=>{clearInterval(readyTimer);if(!memberAuthorized)label.textContent='勤怠との接続が切れています。勤怠アプリから開き直してください。';for(const resolve of connectionWaiters.splice(0))resolve(false)},8000);connect();
-}else{ nameInput.disabled=true;nameInput.value='';label.textContent='勤怠アプリの「暇つぶし」から起動してください';}
-function receive(m,via){
- if(m?.type==='games-context'&&m.authorized===true&&typeof m.name==='string'&&m.name){transport=via;memberAuthorized=true;playerName=m.name;nameInput.value=playerName;attendanceStandalone=!!m.standalone;API=m.shared?'bridge':'local';try{sessionStorage.setItem(sessionKey,playerName)}catch{}clearInterval(readyTimer);clearTimeout(connectionTimer);label.textContent=m.shared?'登録メンバーの共有ランキング':'登録メンバー専用・ランキングはこの端末に保存';for(const resolve of connectionWaiters.splice(0))resolve(true);}
- if(m?.type==='games-request-received'&&waiting.has(m.id)){waiting.get(m.id).received=true;clearTimeout(waiting.get(m.id).ackTimer);}
- if(m?.type==='games-response'&&waiting.has(m.id)){const pending=waiting.get(m.id);clearTimeout(pending.timer);clearTimeout(pending.ackTimer);waiting.delete(m.id);pending.resolve(m.result)}
-}
-function connect(){if(bridgeWindow&&!bridgeWindow.closed)bridgeWindow.postMessage({type:'games-ready'},'*');channel?.postMessage({type:'games-ready'});}
-function send(m){if(transport==='channel'&&channel){channel.postMessage(m);return true}if(bridgeWindow&&!bridgeWindow.closed){bridgeWindow.postMessage(m,'*');return true}return false}
-async function verifyPunchIdentity(){if(embedded&&!memberAuthorized)await new Promise(resolve=>{connectionWaiters.push(resolve);const t=setTimeout(()=>{const i=connectionWaiters.indexOf(resolve);if(i>=0)connectionWaiters.splice(i,1);resolve(false)},8500);});if(embedded&&memberAuthorized&&playerName)return true;alert('勤怠アプリの登録済み本人端末から「暇つぶし」を開き直してください。');return false;}
-function readDeviceRegistration(){return memberAuthorized&&playerName?{name:playerName,deviceToken:''}:null}
-async function callShared(payload){
- if(!memberAuthorized)return {ok:false,error:'勤怠アプリとの接続を確認してください'};
- if(API==='bridge')return new Promise(resolve=>{const id=++sequence,timer=setTimeout(()=>{const p=waiting.get(id);clearTimeout(p?.ackTimer);waiting.delete(id);resolve({ok:false,error:p?.received?'勤怠アプリは要求を受信しましたが、応答が届きません。勤怠アプリを一度前面に戻して、ランキングを再読み込みしてください。':'勤怠アプリとの接続が切れています。勤怠アプリから暇つぶしを開き直してください。'})},60000);const ackTimer=setTimeout(()=>{if(waiting.has(id)&&!waiting.get(id).received){label.textContent='勤怠が通信要求を受信していません。勤怠アプリを前面に戻して確認してください。'}},4000);waiting.set(id,{resolve,timer,ackTimer,received:false});if(!send({type:'games-request',id,payload:{action:payload.action,gameId:payload.gameId,score:payload.score}})){clearTimeout(timer);clearTimeout(ackTimer);waiting.delete(id);resolve({ok:false,error:'勤怠アプリとの接続が切れています。勤怠アプリから開き直してください。'})}});
- try{const key='pastime-standalone-rankings-v1',all=JSON.parse(localStorage.getItem(key)||'{}'),rows=all[payload.gameId]||[];if(payload.action==='saveMathGameScore'){const row=rows.find(r=>r.name===playerName);if(row)row.score=Math.max(row.score,payload.score);else rows.push({name:playerName,score:payload.score});all[payload.gameId]=rows;localStorage.setItem(key,JSON.stringify(all))}rows.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ja'));let rank=0;return {ok:true,ranking:rows.map((r,i)=>{if(i===0||r.score!==rows[i-1].score)rank=i+1;return {...r,rank}})}}catch{return {ok:false,error:'このブラウザではランキングを保存できません。'}}
-}
+// ゲーム専用Apps Scriptへ直接通信。勤怠のウィンドウには依存しません。
+const gameSettings=window.PASTIME_CONFIG||{},API=gameSettings.apiUrl||'';
+const nameInput=document.getElementById('employee'),connectionLabel=document.getElementById('connectionLabel');
+const GAME_SESSION_KEY='pastime-game-session-v2',GAME_TICKET_KEY='pastime-game-launch-v2';
+let gameSession=null,sessionError='',requestSequence=0;
+nameInput.disabled=true;nameInput.value='';
+function gameJsonp(payload){return new Promise(resolve=>{
+ if(!API)return resolve({ok:false,error:'ゲーム専用の公開URLが未設定です。game-config.jsを設定してください。'});
+ const callback='pastimeReply_'+Date.now()+'_'+(++requestSequence),script=document.createElement('script');let done=false;
+ const finish=result=>{if(done)return;done=true;clearTimeout(timer);delete window[callback];script.remove();resolve(result)};
+ const timer=setTimeout(()=>finish({ok:false,error:'ゲーム専用サーバーから応答がありません。公開URL・アクセス設定・通信を確認してください。'}),45000);
+ window[callback]=finish;script.referrerPolicy='no-referrer';script.onerror=()=>finish({ok:false,error:'ゲーム専用サーバーへ接続できませんでした。'});
+ script.onload=()=>{if(!done)finish({ok:false,error:'ゲーム専用サーバーが応答を返しませんでした。GameService.gsのデプロイを確認してください。'})};
+ script.src=API+'?payload='+encodeURIComponent(JSON.stringify(payload))+'&callback='+callback;document.head.append(script);
+});}
+const gameReady=(async()=>{
+ try{
+  let ticket=new URLSearchParams(location.hash.slice(1)).get('ticket');
+  if(ticket){sessionStorage.setItem(GAME_TICKET_KEY,ticket);history.replaceState(null,'',location.pathname+location.search);gameSession=null;sessionStorage.removeItem(GAME_SESSION_KEY);}
+  else{try{gameSession=JSON.parse(sessionStorage.getItem(GAME_SESSION_KEY)||'null')}catch{}ticket=sessionStorage.getItem(GAME_TICKET_KEY);}
+  if(gameSession?.name)nameInput.value=gameSession.name;
+  connectionLabel.textContent='ゲーム専用サーバーでユーザーを確認中…';
+  let result;
+  if(ticket){result=await gameJsonp({action:'exchangeLaunch',ticket});}
+  else if(gameSession?.token){result=await gameJsonp({action:'gameSession',sessionToken:gameSession.token});}
+  else throw new Error('勤怠アプリの「暇つぶし」から起動してください。');
+  if(!result.ok)throw new Error(result.error||'ゲームのユーザー確認に失敗しました');
+  gameSession={name:result.name,token:result.sessionToken||gameSession?.token,expiresAt:result.expiresAt};
+  if(!gameSession.token)throw new Error('ゲーム専用の認証情報を取得できませんでした');
+  sessionStorage.setItem(GAME_SESSION_KEY,JSON.stringify(gameSession));sessionStorage.removeItem(GAME_TICKET_KEY);
+  nameInput.value=gameSession.name;connectionLabel.textContent='ゲーム専用サーバーに接続・登録メンバーの共有ランキング';return true;
+ }catch(error){gameSession=null;sessionError=error.message;connectionLabel.textContent=sessionError;return false;}
+})();
+async function verifyPunchIdentity(){if(await gameReady)return true;alert(sessionError);return false;}
+function readDeviceRegistration(){return gameSession?{name:gameSession.name,deviceToken:''}:null;}
+async function callShared(payload){if(!await gameReady)return {ok:false,error:sessionError};return gameJsonp({action:payload.action,gameId:payload.gameId,score:payload.score,sessionToken:gameSession.token});}
 function returnToAttendance(){
- send({type:'games-return'});
- if(bridgeWindow&&!bridgeWindow.closed){bridgeWindow.focus();window.close();setTimeout(()=>{label.textContent='勤怠アプリを開いてください。このゲーム画面は閉じて構いません。'},500);return;}
- if(attendanceStandalone||sessionId){window.close();label.textContent='ホーム画面の「勤怠」をタップして戻ってください。';alert('ホーム画面の「勤怠」をタップして戻ってください。ブラウザから起動済みアプリへの自動切り替えは、この端末ではできません。');return;}
- alert('ホーム画面の勤怠アプリから開き直してください。');
+ const params=new URLSearchParams(location.search);if(params.get('attendanceApp')==='1'){window.close();alert('ホーム画面の「勤怠」をタップして戻ってください。');return;}
+ const saved=params.get('attendanceUrl');try{const url=new URL(saved);if(['https:','http:','file:'].includes(url.protocol)&&!url.username&&!url.password){location.assign(url.href);return;}}catch{}
+ alert('ホーム画面の勤怠アプリを開いてください。');
 }
