@@ -1,47 +1,25 @@
+// 勤怠は起動窓口のみ。ランキングの要求・応答は扱いません。
 window.KintaiGames=(()=>{
- let gameWindow=null,identity=null,ids=[],gameOrigin=null,session=0,channel=null;
- function validMember(){const r=readDeviceRegistration();return !!identity&&r?.name===identity.name&&r.deviceToken===identity.deviceToken&&data.employees.includes(identity.name);}
- async function receive(m,send){
-  if(!validMember())return;
-  if(m?.type==='games-ready'){send({type:'games-context',name:identity.name,authorized:true,shared:!!API,standalone:window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true});return;}
-  if(m?.type==='games-return'){window.focus();send({type:'games-returned'});return;}
-  if(m?.type!=='games-request'||!Number.isSafeInteger(m.id)||!ids.includes(m.payload?.gameId)||!['mathGameRanking','saveMathGameScore'].includes(m.payload.action))return;
-  if(m.payload.action==='saveMathGameScore'&&(!Number.isInteger(m.payload.score)||m.payload.score<0||m.payload.score>100000))return;
-  send({type:'games-request-received',id:m.id});
-  const current=session;let result;
-  try{result=API?await rankingRequest({action:m.payload.action,gameId:m.payload.gameId,score:m.payload.score,...identity}):{ok:false,error:'共有先が未設定です'};}catch{result={ok:false,error:'通信できませんでした'};}
-  if(current===session)send({type:'games-response',id:m.id,result});
- }
- window.addEventListener('message',event=>{
-  if(!gameWindow||gameWindow.closed||event.source!==gameWindow||event.origin!==gameOrigin)return;
-  const target=gameWindow;receive(event.data,m=>{if(!target.closed)target.postMessage(m,gameOrigin==='null'?'*':gameOrigin)});
- });
- async function rankingRequest(payload){
-  return new Promise(resolve=>{
-   const callback='kintaiGame_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');let finished=false;
-   const complete=result=>{if(finished)return;finished=true;clearTimeout(timer);delete window[callback];script.remove();resolve(result)};
-   const timer=setTimeout(()=>complete({ok:false,error:'勤怠からApps Scriptへ接続しましたが、45秒以内に応答がありませんでした。Apps Scriptの公開URL・アクセス設定を確認してください。'}),45000);
-   window[callback]=complete;script.onerror=()=>complete({ok:false,error:'Apps Scriptの読み込みに失敗しました。公開URL・アクセス設定・通信を確認してください。'});
-   script.onload=()=>{if(!finished)complete({ok:false,error:'Apps Scriptがランキングの応答を返しませんでした。既存デプロイを新バージョンに更新してください。'})};
-   script.src=API+'?payload='+encodeURIComponent(JSON.stringify(payload))+'&callback='+callback;document.head.append(script);
-  });
- }
+ let opening=false;
  async function open(config){
+  if(opening)return;
   const name=document.getElementById('employee').value,r=readDeviceRegistration();
-  if(!r?.deviceToken||r.name!==name||!data.employees.includes(name)){alert('登録済みの本人端末から利用してください。勤怠アプリで端末を登録してください。');return;}
-  if(gameWindow&&!gameWindow.closed){gameWindow.focus();return;}
-  gameWindow=window.open('about:blank','_blank');
-  if(!gameWindow){alert('ゲームを開くため、このアプリのポップアップを許可してください。');return;}
-  const target=gameWindow;session++;ids=config.gameIds||[];channel?.close();channel=null;
+  if(!r?.deviceToken||r.name!==name||!data.employees.includes(name)){alert('登録済み本人端末から利用してください');return;}
+  if(!API){alert('勤怠の公開接続先が未設定です');return;}
+  const target=window.open('about:blank','_blank');if(!target){alert('ゲームを開くためポップアップを許可してください');return;}
+  opening=true;
   try{
-   const url=new URL(config.url,location.href);if(!['https:','http:','file:'].includes(url.protocol))throw Error('URL');
-   identity={name:r.name,deviceToken:r.deviceToken};gameOrigin=url.origin;
-   const linkId=crypto.randomUUID();url.searchParams.set('attendanceSession',linkId);
-   if(url.origin===location.origin&&typeof BroadcastChannel!=='undefined'){channel=new BroadcastChannel('kintai-games-'+linkId);const active=channel;channel.onmessage=e=>{if(channel===active)receive(e.data,m=>active.postMessage(m))};}
-   url.searchParams.set('v',config.version||'1');url.searchParams.set('fromAttendance','1');
-   const attendanceUrl=new URL(location.href);attendanceUrl.search='';attendanceUrl.hash='';url.searchParams.set('attendanceUrl',attendanceUrl.href);
-   target.location.href=url.href;
-  }catch(error){target.close();identity=null;channel?.close();channel=null;throw error;}
+   target.document.body.textContent='ゲームアプリを起動しています…';
+   let timer;const result=await Promise.race([callShared({action:'issueGameLaunch',name:r.name,deviceToken:r.deviceToken}),new Promise(resolve=>{timer=setTimeout(()=>resolve({ok:false,error:'ユーザー連携の応答がありません。勤怠側のApps Script更新を確認してください。'}),45000)})]).finally(()=>clearTimeout(timer));
+   if(!result.ok||typeof result.ticket!=='string')throw new Error(result.error||'勤怠側にGameIdentity.gsを追加して再デプロイしてください');
+   const url=new URL(config.url,location.href);if(!['https:','http:','file:'].includes(url.protocol))throw new Error('ゲームURLを確認してください');
+   url.searchParams.set('v',config.version||'1');
+   url.searchParams.set('attendanceApp',(window.matchMedia?.('(display-mode: standalone)').matches||navigator.standalone===true)?'1':'0');
+   const back=new URL(location.href);back.search='';back.hash='';url.searchParams.set('attendanceUrl',back.href);
+   // 一時チケットはURLフラグメントへ。勤怠用トークンは渡しません。
+   url.hash=new URLSearchParams({ticket:result.ticket}).toString();
+   target.opener=null;target.location.replace(url.href);
+  }catch(error){target.close();alert(error.message||'ゲームを起動できませんでした');}finally{opening=false;}
  }
  return {open};
 })();
