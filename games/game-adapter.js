@@ -35,12 +35,16 @@ async function verifyPunchIdentity(){if(await gameReady)return true;alert(sessio
 function readDeviceRegistration(){return gameSession?{name:gameSession.name,deviceToken:''}:null;}
 async function callShared(payload){if(!await gameReady)return {ok:false,error:sessionError};return gameJsonp({action:payload.action,gameId:payload.gameId,score:payload.score,sessionToken:gameSession.token});}
 function returnToAttendance(){
- const params=new URLSearchParams(location.search);
- if(params.get('attendanceApp')==='1'){
-  const dialog=document.createElement('dialog');dialog.style.cssText='max-width:360px;width:90%;border:0;border-radius:16px;padding:24px;color:#214965;font:16px system-ui';
-  const message=document.createElement('p');message.textContent='勤怠アプリへ戻るには、ホーム画面の「らくらく勤怠」をタップしてください。ゲーム画面は閉じずに残ります。';
-  const button=document.createElement('button');button.textContent='わかった';button.onclick=()=>{dialog.close();dialog.remove()};dialog.append(message,button);document.body.append(dialog);dialog.showModal();return;
- }
- const saved=params.get('attendanceUrl');try{const url=new URL(saved);if(['https:','http:','file:'].includes(url.protocol)&&!url.username&&!url.password){const button=document.getElementById('attendanceReturn');if(button){button.disabled=true;button.textContent='勤怠へ移動中…';}connectionLabel.textContent='勤怠へ切り替えています…';setTimeout(()=>location.assign(url.href),100);return;}}catch{}
- alert('ホーム画面の勤怠アプリを開いてください。');
+ const params=new URLSearchParams(location.search),button=document.getElementById('attendanceReturn');
+ if(button){button.disabled=true;button.textContent='勤怠へ戻っています…';}
+ connectionLabel.textContent='ゲーム画面を閉じて勤怠へ戻っています…';
+ // 勤怠から開いたタブを閉じ、元の勤怠画面を残します。
+ setTimeout(()=>{
+  if(params.get('attendanceApp')!=='1'){
+   const saved=params.get('attendanceUrl');try{const url=new URL(saved);if(['https:','http:','file:'].includes(url.protocol)&&!url.username&&!url.password){location.replace(url.href);return;}}catch{}
+  }
+  if(button){button.disabled=false;button.textContent='勤怠アプリに戻る';}
+  connectionLabel.textContent='端末が画面を閉じる操作を制限しています。ブラウザの「閉じる／完了」で閉じるか、ホーム画面の勤怠アプリへ戻ってください。';
+ },700);
+ window.close();
 }
