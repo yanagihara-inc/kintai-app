@@ -34,17 +34,12 @@ const gameReady=(async()=>{
 async function verifyPunchIdentity(){if(await gameReady)return true;alert(sessionError);return false;}
 function readDeviceRegistration(){return gameSession?{name:gameSession.name,deviceToken:''}:null;}
 async function callShared(payload){if(!await gameReady)return {ok:false,error:sessionError};return gameJsonp({action:payload.action,gameId:payload.gameId,score:payload.score,sessionToken:gameSession.token});}
-function returnToAttendance(){
- const params=new URLSearchParams(location.search),button=document.getElementById('attendanceReturn');
- if(button){button.disabled=true;button.textContent='勤怠へ戻っています…';}
- connectionLabel.textContent='ゲーム画面を閉じて勤怠へ戻っています…';
- // 勤怠から開いたタブを閉じ、元の勤怠画面を残します。
- setTimeout(()=>{
-  if(params.get('attendanceApp')!=='1'){
-   const saved=params.get('attendanceUrl');try{const url=new URL(saved);if(['https:','http:','file:'].includes(url.protocol)&&!url.username&&!url.password){location.replace(url.href);return;}}catch{}
-  }
-  if(button){button.disabled=false;button.textContent='勤怠アプリに戻る';}
-  connectionLabel.textContent='端末が画面を閉じる操作を制限しています。ブラウザの「閉じる／完了」で閉じるか、ホーム画面の勤怠アプリへ戻ってください。';
- },700);
+function exitGameApp(){
+ const button=document.getElementById('gameExit');if(button){button.disabled=true;button.textContent='終了中…';}
+ for(const id of ['mathGameDialog','mathRankingDialog']){const dialog=document.getElementById(id);if(dialog?.open)dialog.close();}
+ const frame=document.getElementById('mathGameFrame');if(frame){frame.src='about:blank';frame.remove();}
+ const main=document.querySelector('main');if(main)main.hidden=true;
+ connectionLabel.textContent='暇つぶしアプリを終了しています…';
+ setTimeout(()=>{connectionLabel.textContent='終了しました。この画面を閉じてください。';if(button){button.disabled=false;button.textContent='画面を閉じる';}},700);
  window.close();
 }
