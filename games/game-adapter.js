@@ -15,7 +15,8 @@ if(embedded){
 }else{ nameInput.disabled=true;nameInput.value='';label.textContent='勤怠アプリの「暇つぶし」から起動してください';}
 function receive(m,via){
  if(m?.type==='games-context'&&m.authorized===true&&typeof m.name==='string'&&m.name){transport=via;memberAuthorized=true;playerName=m.name;nameInput.value=playerName;attendanceStandalone=!!m.standalone;API=m.shared?'bridge':'local';try{sessionStorage.setItem(sessionKey,playerName)}catch{}clearInterval(readyTimer);clearTimeout(connectionTimer);label.textContent=m.shared?'登録メンバーの共有ランキング':'登録メンバー専用・ランキングはこの端末に保存';for(const resolve of connectionWaiters.splice(0))resolve(true);}
- if(m?.type==='games-response'&&waiting.has(m.id)){const pending=waiting.get(m.id);clearTimeout(pending.timer);waiting.delete(m.id);pending.resolve(m.result)}
+ if(m?.type==='games-request-received'&&waiting.has(m.id)){waiting.get(m.id).received=true;clearTimeout(waiting.get(m.id).ackTimer);}
+ if(m?.type==='games-response'&&waiting.has(m.id)){const pending=waiting.get(m.id);clearTimeout(pending.timer);clearTimeout(pending.ackTimer);waiting.delete(m.id);pending.resolve(m.result)}
 }
 function connect(){if(bridgeWindow&&!bridgeWindow.closed)bridgeWindow.postMessage({type:'games-ready'},'*');channel?.postMessage({type:'games-ready'});}
 function send(m){if(transport==='channel'&&channel){channel.postMessage(m);return true}if(bridgeWindow&&!bridgeWindow.closed){bridgeWindow.postMessage(m,'*');return true}return false}
@@ -23,7 +24,7 @@ async function verifyPunchIdentity(){if(embedded&&!memberAuthorized)await new Pr
 function readDeviceRegistration(){return memberAuthorized&&playerName?{name:playerName,deviceToken:''}:null}
 async function callShared(payload){
  if(!memberAuthorized)return {ok:false,error:'勤怠アプリとの接続を確認してください'};
- if(API==='bridge')return new Promise(resolve=>{const id=++sequence,timer=setTimeout(()=>{waiting.delete(id);resolve({ok:false,error:'ランキング通信がタイムアウトしました。勤怠アプリが開いているか、Apps Scriptが更新済みか確認してください。'})},24000);waiting.set(id,{resolve,timer});if(!send({type:'games-request',id,payload:{action:payload.action,gameId:payload.gameId,score:payload.score}})){clearTimeout(timer);waiting.delete(id);resolve({ok:false,error:'勤怠アプリとの接続が切れています。勤怠アプリから開き直してください。'})}});
+ if(API==='bridge')return new Promise(resolve=>{const id=++sequence,timer=setTimeout(()=>{const p=waiting.get(id);clearTimeout(p?.ackTimer);waiting.delete(id);resolve({ok:false,error:p?.received?'勤怠アプリは要求を受信しましたが、応答が届きません。勤怠アプリを一度前面に戻して、ランキングを再読み込みしてください。':'勤怠アプリとの接続が切れています。勤怠アプリから暇つぶしを開き直してください。'})},60000);const ackTimer=setTimeout(()=>{if(waiting.has(id)&&!waiting.get(id).received){label.textContent='勤怠が通信要求を受信していません。勤怠アプリを前面に戻して確認してください。'}},4000);waiting.set(id,{resolve,timer,ackTimer,received:false});if(!send({type:'games-request',id,payload:{action:payload.action,gameId:payload.gameId,score:payload.score}})){clearTimeout(timer);clearTimeout(ackTimer);waiting.delete(id);resolve({ok:false,error:'勤怠アプリとの接続が切れています。勤怠アプリから開き直してください。'})}});
  try{const key='pastime-standalone-rankings-v1',all=JSON.parse(localStorage.getItem(key)||'{}'),rows=all[payload.gameId]||[];if(payload.action==='saveMathGameScore'){const row=rows.find(r=>r.name===playerName);if(row)row.score=Math.max(row.score,payload.score);else rows.push({name:playerName,score:payload.score});all[payload.gameId]=rows;localStorage.setItem(key,JSON.stringify(all))}rows.sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ja'));let rank=0;return {ok:true,ranking:rows.map((r,i)=>{if(i===0||r.score!==rows[i-1].score)rank=i+1;return {...r,rank}})}}catch{return {ok:false,error:'このブラウザではランキングを保存できません。'}}
 }
 function returnToAttendance(){
