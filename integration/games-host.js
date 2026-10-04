@@ -23,6 +23,7 @@ window.KintaiGames=(()=>{
    who={name:r.name,deviceToken:r.deviceToken};
    const url=new URL(config.url,location.href);if(!['https:','http:','file:'].includes(url.protocol))throw Error('URL');
    url.searchParams.set('v',config.version||'1');url.searchParams.set('fromAttendance','1');
+   const attendanceUrl=new URL(location.href);attendanceUrl.search='';attendanceUrl.hash='';url.searchParams.set('attendanceUrl',attendanceUrl.href);
    identity=who;gameOrigin=url.origin;target.location.href=url.href;
   }catch(error){target.close();identity=null;throw error;}
  }

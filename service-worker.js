@@ -1,8 +1,9 @@
-const CACHE='rakuraku-kintai-shell-v102';
-const APP_FILES=['./','./index.html','./app-config.js','./integration/games-loader.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./fox-runner.png'];
+const CACHE='rakuraku-kintai-shell-v103';
+const APP_FILES=['./','./index.html','./app-config.js'];
+const OPTIONAL_FILES=['./integration/games-loader.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./fox-runner.png'];
 
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP_FILES)));
+  event.waitUntil(caches.open(CACHE).then(async cache=>{await cache.addAll(APP_FILES);await Promise.allSettled(OPTIONAL_FILES.map(file=>cache.add(file)));}));
   self.skipWaiting();
 });
 self.addEventListener('activate',event=>event.waitUntil(

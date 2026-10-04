@@ -1,0 +1,3 @@
+勤怠アプリのGitHubリポジトリのトップ階層で Add file → Upload files を開き、このフォルダ内の index.html、app-config.js、service-worker.js、games-config.js と integration フォルダをアップロードしてください。
+復旧用フォルダ自体とこの手順ファイルはアップロードしません。
+games/index.html は games フォルダ内にだけ配置します。トップ階層の index.html には使いません。
