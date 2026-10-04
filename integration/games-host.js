@@ -7,14 +7,25 @@ window.KintaiGames=(()=>{
   if(m?.type==='games-return'){window.focus();send({type:'games-returned'});return;}
   if(m?.type!=='games-request'||!Number.isSafeInteger(m.id)||!ids.includes(m.payload?.gameId)||!['mathGameRanking','saveMathGameScore'].includes(m.payload.action))return;
   if(m.payload.action==='saveMathGameScore'&&(!Number.isInteger(m.payload.score)||m.payload.score<0||m.payload.score>100000))return;
+  send({type:'games-request-received',id:m.id});
   const current=session;let result;
-  try{result=API?await callShared({action:m.payload.action,gameId:m.payload.gameId,score:m.payload.score,...identity}):{ok:false,error:'共有先が未設定です'};}catch{result={ok:false,error:'通信できませんでした'};}
+  try{result=API?await rankingRequest({action:m.payload.action,gameId:m.payload.gameId,score:m.payload.score,...identity}):{ok:false,error:'共有先が未設定です'};}catch{result={ok:false,error:'通信できませんでした'};}
   if(current===session)send({type:'games-response',id:m.id,result});
  }
  window.addEventListener('message',event=>{
   if(!gameWindow||gameWindow.closed||event.source!==gameWindow||event.origin!==gameOrigin)return;
   const target=gameWindow;receive(event.data,m=>{if(!target.closed)target.postMessage(m,gameOrigin==='null'?'*':gameOrigin)});
  });
+ async function rankingRequest(payload){
+  return new Promise(resolve=>{
+   const callback='kintaiGame_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');let finished=false;
+   const complete=result=>{if(finished)return;finished=true;clearTimeout(timer);delete window[callback];script.remove();resolve(result)};
+   const timer=setTimeout(()=>complete({ok:false,error:'勤怠からApps Scriptへ接続しましたが、45秒以内に応答がありませんでした。Apps Scriptの公開URL・アクセス設定を確認してください。'}),45000);
+   window[callback]=complete;script.onerror=()=>complete({ok:false,error:'Apps Scriptの読み込みに失敗しました。公開URL・アクセス設定・通信を確認してください。'});
+   script.onload=()=>{if(!finished)complete({ok:false,error:'Apps Scriptがランキングの応答を返しませんでした。既存デプロイを新バージョンに更新してください。'})};
+   script.src=API+'?payload='+encodeURIComponent(JSON.stringify(payload))+'&callback='+callback;document.head.append(script);
+  });
+ }
  async function open(config){
   const name=document.getElementById('employee').value,r=readDeviceRegistration();
   if(!r?.deviceToken||r.name!==name||!data.employees.includes(name)){alert('登録済みの本人端末から利用してください。勤怠アプリで端末を登録してください。');return;}
