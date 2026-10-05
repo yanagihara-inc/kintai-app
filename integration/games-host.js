@@ -1,6 +1,8 @@
 // 勤怠は起動窓口のみ。ランキングの要求・応答は扱いません。
 window.KintaiGames=(()=>{
  let opening=false;
+ try{const config=window.KINTAI_GAMES;if(config?.enabled){const page=new URL(config.url,location.href);if(['http:','https:'].includes(page.protocol)){for(const file of [null,'game-config.js','game-adapter.js','math-ranking.js']){const link=document.createElement('link');link.rel='prefetch';link.href=file?new URL(file,page).href:page.href;document.head.append(link);}}}}catch{}
+
  async function open(config){
   if(opening)return;
   const name=document.getElementById('employee').value,r=readDeviceRegistration();
