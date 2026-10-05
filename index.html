@@ -165,9 +165,11 @@
 <body>
   <div class="shell">
     <div id="loadingScreen" class="loading-screen"><div class="loading-card"><div class="spinner"></div><p id="loadingText">起動中<br>データを読み込んでいます</p><button id="loadingRetry" hidden>もう一度読み込む</button></div></div>
-    <header><div class="brand"><div class="brand-title"><img class="brand-mark" src="icon-192.png" alt=""><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><div class="admin-tools"><button id="correctionReviewOpen" type="button" hidden>打刻修正依頼</button><button id="adminOpen" hidden>管理・集計</button><button class="animal-preview-open" id="animalPreviewOpen" type="button" hidden>🐾 動物を確認</button></div></div><div class="today" id="today"></div><div class="clock-line"><div id="clock">--:--</div><div class="header-tools"><button class="who-open" id="whoOpen">👤📍<br>誰どこ</button><button class="who-open" id="gamesOpen" type="button" aria-label="暇つぶしアプリを開く" title="登録済みの本人端末からゲームアプリを開きます">🎯<br>暇つぶし</button><button class="holiday-open" id="holidayOpen">📅 休日<br>カレンダー</button></div></div></header>
+    <header><div class="brand"><div class="brand-title"><img class="brand-mark" src="icon-192.png" alt=""><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><div class="admin-tools"><button id="adminOpen" hidden>管理・集計</button><button class="animal-preview-open" id="animalPreviewOpen" type="button" hidden>🐾 動物を確認</button></div></div><div class="today" id="today"></div><div class="clock-line"><div id="clock">--:--</div><div class="header-tools"><button class="who-open" id="whoOpen">👤📍<br>誰どこ</button><button class="who-open" id="gamesOpen" type="button" aria-label="暇つぶしアプリを開く" title="登録済みの本人端末からゲームアプリを開きます">🎯<br>暇つぶし</button><button class="holiday-open" id="holidayOpen">📅 休日<br>カレンダー</button></div></div></header>
     <main>
       <div class="person"><div><label>打刻する人</label><div class="person-name-line"><select id="employee"></select><span class="admin-badge" id="adminBadge" hidden>管理者</span></div></div></div>
+      <button id="correctionReviewOpen" type="button" hidden style="width:100%;margin:4px 0 12px;padding:12px 14px;border-radius:12px;font-size:16px">打刻修正依頼</button>
+      <div class="missing-alert" id="missingAlert" role="status" hidden></div>
       <button class="personal-view" id="personalOpen">今月の勤怠記録</button>
       <p class="lead">打刻する項目を選んでください</p>
       <div class="actions">
@@ -180,7 +182,6 @@
       </div>
       <div class="night-control"><button class="correction-button" id="correctionOpen" type="button">✏️ 打刻修正申請</button><button class="trip-button" id="tripCount" type="button">🧳 出張を記録</button><button class="night-button" id="nightCount" type="button">🌙 夜勤を記録</button></div>
       <div class="notice" id="notice"></div>
-      <div class="missing-alert" id="missingAlert" hidden></div>
       <button class="install" id="install" hidden>📲 このアプリをホーム画面に追加</button>
       <h2>今日の記録</h2><div class="today-sites"><strong>今日の現場</strong><span id="todaySites">未選択</span></div><div class="history" id="history"></div>
     </main>
