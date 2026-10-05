@@ -60,11 +60,11 @@
     .person > span { display:grid; place-items:center; width:32px; height:32px; border-radius:50%; background:#e8f5f0; color:var(--green); font-size:17px; }
     .lead { margin:0 4px 13px; color:#718078; font-size:13px; font-weight:600; }
     .actions { gap:12px; }
-    .punch { position:relative; min-height:128px; overflow:hidden; padding:16px; border:0; border-radius:20px; box-shadow:0 8px 20px #183c3214; }
+    .punch { position:relative; min-height:110px; overflow:hidden; padding:11px 16px; border:0; border-radius:20px; box-shadow:0 8px 20px #183c3214; }
     .punch::after { content:""; position:absolute; width:74px; height:74px; right:-24px; bottom:-32px; border-radius:50%; background:currentColor; opacity:.06; }
     .punch.start { border:1px solid #bfe3d7; background:linear-gradient(145deg,#fff 0%,#eaf8f3 100%); color:#096a58; }
     .punch.end { border:1px solid #f2d1b5; background:linear-gradient(145deg,#fff 0%,#fff1e4 100%); color:#b85212; }
-    .punch .icon { display:grid; place-items:center; width:44px; height:44px; margin-bottom:12px; border-radius:14px; background:#fff; box-shadow:0 5px 14px #143a3015; font-size:25px; }
+    .punch .icon { display:grid; place-items:center; width:38px; height:38px; margin-bottom:7px; border-radius:12px; background:#fff; box-shadow:0 5px 14px #143a3015; font-size:25px; }
     .punch strong,.punch.end strong { color:inherit; font-size:19px; }
     .punch small { margin-top:3px; color:#6d7a74; }
     .punch:focus-visible { outline:3px solid #2aa78a; outline-offset:3px; }
@@ -158,7 +158,7 @@
     .modal { padding:24px 21px; }
     .primary,.secondary,.export { min-height:44px; border-radius:12px; font-weight:700; }
     @media (min-width:600px) { body { padding:24px 0; } .shell { min-height:calc(100vh - 48px); border-radius:28px; } }
-    @media (max-width:370px) { #clock { font-size:43px; } .punch { min-height:116px; padding:13px; } .brand h1 { font-size:18px; } }
+    @media (max-width:370px) { #clock { font-size:43px; } .punch { min-height:104px; padding:9px 13px; } .brand h1 { font-size:18px; } }
       #gamesOpen[hidden] { display:none; }
   </style>
 </head>
