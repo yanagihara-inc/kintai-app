@@ -2,7 +2,7 @@
 window.KINTAI_GAMES={
   "enabled": true,
   "url": "./games/index.html",
-  "version": "1791198117506",
+  "version": "1791207493951",
   "gameIds": [
     "math",
     "mole",
@@ -14,3 +14,4 @@ window.KINTAI_GAMES={
     "formwork"
   ]
 };
+
