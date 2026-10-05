@@ -169,6 +169,7 @@
     <main>
       <div class="person"><div><label>打刻する人</label><div class="person-name-line"><select id="employee"></select><span class="admin-badge" id="adminBadge" hidden>管理者</span></div></div></div>
       <button id="correctionReviewOpen" type="button" hidden style="width:100%;margin:4px 0 12px;padding:12px 14px;border-radius:12px;font-size:16px">打刻修正依頼</button>
+      <div class="notice" id="correctionResultNotice" role="status" hidden></div>
       <div class="missing-alert" id="missingAlert" role="status" hidden></div>
       <button class="personal-view" id="personalOpen">今月の勤怠記録</button>
       <p class="lead">打刻する項目を選んでください</p>
@@ -260,11 +261,42 @@ function render(){ const sel=$('#employee'),registration=readDeviceRegistration(
         const at=new Date(`${today}T${value}:00+09:00`).getTime();
         if(!confirm(`${record.type} ${correctionTime(record.at)} → ${value}\nこの内容で修正申請しますか？`))return;
         const button=$('#todayCorrectionSubmit');button.disabled=true;select.disabled=true;time.disabled=true;button.textContent='申請中…';
-        try{const result=await callShared({action:'submitCorrectionRequest',name,...auth,recordId:record.id,date:today,type:record.type,at});if(!result.ok)return alert(result.error||'修正申請に失敗しました');data.pendingCorrectionCount=Number(data.pendingCorrectionCount||0)+1;updateCorrectionReviewButton();dialog.close();alert('打刻修正を申請しました。管理者の許可後に反映されます。');}
+try{const result=await callShared({action:'submitCorrectionRequest',name,...auth,recordId:record.id,date:today,type:record.type,at});if(!result.ok)return alert(result.error||'修正申請に失敗しました');data.pendingCorrectionCount=Number(data.pendingCorrectionCount||0)+1;updateCorrectionReviewButton();showPersonalCorrectionStatus({date:today,pendingIds:[result.requestId]});refreshPersonalCorrectionResults();dialog.close();alert('打刻修正を申請しました。管理者の許可後に反映されます。');}
         finally{button.disabled=false;select.disabled=false;time.disabled=false;button.textContent='修正申請を送信';}
       };
     }
     $('#correctionOpen').addEventListener('click',async()=>{if(!await verifyPunchIdentity())return;showTodayCorrectionForm(data.records,$('#employee').value,{deviceToken:readDeviceRegistration()?.deviceToken||''});});
+    let personalCorrectionBusy=false;
+    let personalCorrectionNoticeDate='';
+    function showPersonalCorrectionStatus(result){
+      personalCorrectionNoticeDate=result.date;
+      const messages=[];
+      if((result.pendingIds||[]).length)messages.push('打刻修正申請中です');
+      if((result.approvedIds||[]).length)messages.push('打刻を修正しました');
+      if((result.rejectedIds||[]).length)messages.push('打刻修正申請が却下されました');
+      $('#correctionResultNotice').textContent=messages.join(' ／ ');
+      $('#correctionResultNotice').hidden=!messages.length;
+    }
+    function clearExpiredCorrectionStatus(){
+      if(personalCorrectionNoticeDate&&personalCorrectionNoticeDate!==keyDate(new Date())){
+        personalCorrectionNoticeDate='';$('#correctionResultNotice').textContent='';$('#correctionResultNotice').hidden=true;
+      }
+    }
+    setInterval(clearExpiredCorrectionStatus,1000);
+    async function refreshPersonalCorrectionResults(){
+      clearExpiredCorrectionStatus();
+      const registration=readDeviceRegistration();
+      if(!API||document.hidden||personalCorrectionBusy||!registration)return;
+      personalCorrectionBusy=true;
+      try{
+        const result=await Promise.race([callShared({action:'personalCorrectionResults',name:registration.name,deviceToken:registration.deviceToken}),new Promise(resolve=>setTimeout(()=>resolve({ok:false}),15000))]);
+        if(!result.ok||readDeviceRegistration()?.name!==registration.name)return;
+        if(result.date===keyDate(new Date()))showPersonalCorrectionStatus(result);
+      }finally{personalCorrectionBusy=false;}
+    }
+    setTimeout(refreshPersonalCorrectionResults,0);
+    setInterval(refreshPersonalCorrectionResults,60000);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshPersonalCorrectionResults();});
     let correctionNoticeBusy=false;
     async function refreshCorrectionNotice(){if(!API||document.hidden||correctionNoticeBusy||!data.admins.includes($('#employee').value))return;correctionNoticeBusy=true;try{const result=await Promise.race([callShared({action:'correctionNotice'}),new Promise(resolve=>setTimeout(()=>resolve({ok:false}),15000))]);if(result.ok){data.pendingCorrectionCount=result.count;updateCorrectionReviewButton();}}finally{correctionNoticeBusy=false;}}
     setInterval(refreshCorrectionNotice,60000);
@@ -287,7 +319,7 @@ function playAnimalForType(type){const supplementButtons={夜勤:'#nightCount',�
         const label=button.textContent,decision=button.dataset.decision;
         if(!confirm(`この打刻修正申請を「${label}」にしますか？`))return;
         const controls=[...document.querySelectorAll('[data-review-id]')];controls.forEach(control=>control.disabled=true);
-        try{const result=await callShared({action:'reviewCorrectionRequest',requestId:button.dataset.reviewId,decision,pin:adminPin});if(!result.ok){alert(result.error||'申請を処理できません');return;}data.correctionRequests=requests.filter(request=>request.id!==button.dataset.reviewId);renderMobileCorrectionReview();$('#notice').textContent=`打刻修正申請を${label}にしました`;}
+try{const result=await callShared({action:'reviewCorrectionRequest',requestId:button.dataset.reviewId,decision,pin:adminPin});if(!result.ok){alert(result.error||'申請を処理できません');return;}data.correctionRequests=requests.filter(request=>request.id!==button.dataset.reviewId);renderMobileCorrectionReview();}
         finally{controls.forEach(control=>control.disabled=false);}
       });
     }
