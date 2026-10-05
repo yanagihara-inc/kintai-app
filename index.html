@@ -229,11 +229,11 @@
     function readDeviceRegistration(){try{const value=JSON.parse(localStorage.getItem(DEVICE_REGISTRATION_KEY)||'null');return value&&value.name&&value.deviceToken?value:null;}catch(_){return null;}}
     function canUseDesktopAdmin(){return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&!(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)&&data.admins.includes($('#employee').value);}
 function render(){ const sel=$('#employee'),registration=readDeviceRegistration(),available=registration&&data.employees.includes(registration.name)?[registration.name]:data.employees,current=registration?.name||sel.value||localStorage.getItem(SELECTED_EMPLOYEE_KEY);sel.innerHTML=available.map(n=>`<option>${n}</option>`).join('');if(available.includes(current))sel.value=current;sel.disabled=!!registration;localStorage.setItem(SELECTED_EMPLOYEE_KEY,sel.value);$('#companyName').textContent=data.companyName||'会社名を設定';const isAdmin=data.admins.includes(sel.value);$('#adminOpen').hidden=!canUseDesktopAdmin();$('#animalPreviewOpen').hidden=!isAdmin;$('#adminBadge').hidden=!isAdmin;updateCorrectionReviewButton();const who=sel.value,today=keyDate(new Date());const rows=data.records.filter(r=>r.name===who&&r.date===today).sort((a,b)=>b.at-a.at),todaySites=[...new Set(rows.flatMap(r=>r.sites||[]).filter(Boolean))];$('#todaySites').innerHTML=todaySites.length?todaySites.map(site=>`<span class="today-site-name">${esc(site)}</span>`).join(''):'未選択';$('#history').innerHTML=rows.length?rows.map(r=>`<div class="row"><div><span class="tag ${['退勤','直帰'].includes(r.type)?'end':''}">${r.type}</span>${r.expectedReturn?`<div class="hint">戻り予定：${esc(r.expectedReturn)}</div>`:''}</div><div class="time">${new Date(r.at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div></div>`).join(''):'<div class="empty">まだ打刻はありません</div>';}
-    function updateSupplementButtons(){const name=$('#employee').value,date=keyDate(new Date());[['#nightCount','夜勤','🌙'],['#tripCount','出張','🧳']].forEach(([selector,type,icon])=>{const button=$(selector),recorded=data.records.some(record=>record.name===name&&record.date===date&&record.type===type);button.disabled=supplementBusy;button.textContent=`${icon} ${type} ${recorded?'ON':'OFF'}`;button.setAttribute('aria-label',`${type} ${recorded?'ON（記録あり）':'OFF（記録なし）'}`);button.setAttribute('aria-pressed',String(recorded));button.classList.toggle('recorded',recorded);});}
+function updateSupplementButtons(){const name=$('#employee').value,date=keyDate(new Date());[['#nightCount','夜勤','🌙'],['#tripCount','出張','🧳']].forEach(([selector,type,icon])=>{const button=$(selector),draft=readSupplementDrafts().find(item=>item.name===name&&item.date===date&&item.type===type),recorded=draft?draft.active:data.records.some(record=>record.name===name&&record.date===date&&record.type===type);button.disabled=supplementBusy;button.textContent=`${icon} ${type} ${recorded?'ON':'OFF'}`;button.setAttribute('aria-label',`${type} ${recorded?'ON（記録あり）':'OFF（記録なし）'}`);button.setAttribute('aria-pressed',String(recorded));button.classList.toggle('recorded',recorded);});}
     function updatePunchButtons(){const name=$('#employee').value,date=keyDate(new Date()),rows=data.records.filter(record=>record.name===name&&record.date===date),start=rows.find(record=>['出勤','直行'].includes(record.type)),end=rows.find(record=>['退勤','直帰'].includes(record.type)),awayCount=rows.filter(record=>record.type==='外出').length,returnCount=rows.filter(record=>record.type==='戻り').length,awayOpen=awayCount>returnCount,descriptions={出勤:'会社へ出勤',直行:'現場へ直接向かう',退勤:'勤務終了',直帰:'現場から直接帰る',外出:'勤務途中で一時退出',戻り:'外出から勤務へ戻る'};document.querySelectorAll('.punch').forEach(button=>{const type=button.dataset.type,strong=button.querySelector('strong'),small=button.querySelector('small'),recorded=(start?.type===type)||(end?.type===type);button.classList.toggle('recorded',recorded);strong.textContent=recorded?`${type}（打刻済み）`:type;small.textContent=descriptions[type]||'';if(['出勤','直行'].includes(type))button.disabled=!!start&&!recorded;else if(['退勤','直帰'].includes(type))button.disabled=(!!end&&!recorded)||!start;else if(type==='外出')button.disabled=!!end||!start||awayOpen;else if(type==='戻り')button.disabled=!!end||!awayOpen;});}
     function renderMissingPunchWarning(){const target=$('#missingAlert'),name=$('#employee').value,today=keyDate(new Date()),rows=data.records.filter(record=>record.name===name&&record.date===today),messages=data.missingPunches.filter(item=>item.name===name).map(item=>`${item.date}：${item.message}`),start=rows.some(record=>['出勤','直行'].includes(record.type)),end=rows.some(record=>['退勤','直帰'].includes(record.type)),away=rows.filter(record=>record.type==='外出').length,back=rows.filter(record=>record.type==='戻り').length;if(start&&!end&&new Date().getHours()>=18)messages.unshift('本日の退勤・直帰がまだ記録されていません');if(away>back)messages.unshift('外出後の「戻り」がまだ記録されていません');const pending=readPendingQueue().length;if(pending)messages.unshift(`通信待ちの記録が${pending}件あります`);target.hidden=!messages.length;target.innerHTML=messages.length?`⚠️ ${messages.map(esc).join('<br>')}`:'';}
     const baseRenderWithNightCount=render;render=function(){baseRenderWithNightCount();updateSupplementButtons();updatePunchButtons();renderMissingPunchWarning();};
-function tick(){const d=new Date(),date=keyDate(d);if(window.kintaiDisplayedDate&&window.kintaiDisplayedDate!==date){render();loadShared();}window.kintaiDisplayedDate=date;$('#today').textContent=jpDate(d);$('#clock').textContent=d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});if(d.getSeconds()===0)renderMissingPunchWarning();} tick();setInterval(tick,1000);render();loadShared();
+function tick(){const d=new Date(),date=keyDate(d);if(window.kintaiDisplayedDate&&window.kintaiDisplayedDate!==date){render();loadShared();flushFinalSupplements();}window.kintaiDisplayedDate=date;$('#today').textContent=jpDate(d);$('#clock').textContent=d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});if(d.getSeconds()===0)renderMissingPunchWarning();} tick();setInterval(tick,1000);render();loadShared();
     $('#employee').addEventListener('change',()=>{localStorage.setItem(SELECTED_EMPLOYEE_KEY,$('#employee').value);render();});
     $('#holidayOpen').addEventListener('click',()=>{const month=keyDate(new Date()).slice(0,7);$('#holidayMonth').value=month;renderHolidayCalendar(month);$('#holidayDialog').showModal();});
     function renderWhoWhere(){const today=keyDate(new Date()),rows=data.records.filter(record=>record.date===today),body=data.employees.map(name=>{const personal=rows.filter(record=>record.name===name).sort((a,b)=>a.at-b.at),start=personal.some(record=>['出勤','直行'].includes(record.type)),end=personal.some(record=>['退勤','直帰'].includes(record.type)),status=end?'退勤済み':start?'出勤中':'未出勤',sites=[...new Set(personal.flatMap(record=>record.sites||[]).filter(Boolean))];return `<tr><td>${esc(name)}</td><td>${status}</td><td>${sites.length?sites.map(esc).join('、'):'—'}</td></tr>`;}).join('');$('#whoContent').innerHTML=`<table class="who-table"><thead><tr><th>氏名</th><th>出勤状況</th><th>行先</th></tr></thead><tbody>${body}</tbody></table>`;$('#whoDialog').showModal();}
@@ -243,20 +243,41 @@ function tick(){const d=new Date(),date=keyDate(d);if(window.kintaiDisplayedDate
     async function verifyPunchIdentity(){const name=$('#employee').value,registration=readDeviceRegistration();if(registration?.name===name)return true;if(!data.pinConfiguredNames.includes(name)){alert(`${name}さんの個人PINが未設定です。\n先に「今月の勤怠記録」から数字3桁のPINを登録してください。`);return false;}const pin=prompt(`${name}さんの個人PIN（数字3桁）を入力してください\n※初回だけ、このスマホを本人端末として登録します`,'');if(pin===null)return false;if(!/^\d{3}$/.test(pin)){alert('個人PINを数字3桁で入力してください');return false;}const result=await callShared({action:'registerDevice',name,personalPin:pin});if(!result.ok){alert(result.error||'端末登録に失敗しました');return false;}localStorage.setItem(DEVICE_REGISTRATION_KEY,JSON.stringify({name:result.name,deviceToken:result.deviceToken}));$('#notice').textContent=`${name}さんの本人端末として登録しました。次回からPIN入力は不要です。`;render();return true;}
     const showButtonMotion=()=>new Promise(resolve=>setTimeout(resolve,220));
     var supplementBusy=false;
+    var supplementPending=null;
+    function readSupplementDrafts(){try{const rows=JSON.parse(localStorage.getItem('rakuraku-kintai-supplement-drafts')||'[]');return Array.isArray(rows)?rows:[];}catch(_){return [];}}
+    function writeSupplementDrafts(rows){localStorage.setItem('rakuraku-kintai-supplement-drafts',JSON.stringify(rows));}
+    var supplementFlushBusy=false;
+    async function flushFinalSupplements(){
+      if(!API||!navigator.onLine||supplementFlushBusy)return;
+      const registration=readDeviceRegistration();if(!registration)return;
+      supplementFlushBusy=true;let saved=false;
+      try{
+        const today=keyDate(new Date());
+        for(const item of readSupplementDrafts().filter(row=>row.name===registration.name&&row.date<today)){
+          const result=await callShared({action:'finalizeSupplement',...item,deviceToken:registration.deviceToken});
+          if(!result.ok){$('#notice').textContent='確定した出張・夜勤が未送信です。'+(result.error||'通信回復後に再送します');break;}
+          writeSupplementDrafts(readSupplementDrafts().filter(row=>!(row.name===item.name&&row.date===item.date&&row.type===item.type)));
+          saved=true;
+        }
+        if(saved)loadShared();
+      }finally{supplementFlushBusy=false;}
+    }
+    setTimeout(flushFinalSupplements,0);
+    setInterval(flushFinalSupplements,60000);
+    window.addEventListener('online',flushFinalSupplements);
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden){updateSupplementButtons();flushFinalSupplements();}});
     async function toggleSupplement(type){
       if(supplementBusy)return;
       supplementBusy=true;updateSupplementButtons();
       try{
         if(!await verifyPunchIdentity())return;
-        const name=$('#employee').value,date=keyDate(new Date()),active=!data.records.some(record=>record.name===name&&record.date===date&&record.type===type);
-        await showButtonMotion();
-        const result=await callShared({action:'setSupplement',name,type,date,active,deviceToken:readDeviceRegistration()?.deviceToken||''});
-        if(!result.ok)return alert(result.error||'通信できません。記録は変更していません。もう一度操作してください。');
-        data.records=data.records.filter(record=>!(record.name===name&&record.date===date&&record.type===type));
-        if(result.record)data.records.push(result.record);
-        render();$('#notice').textContent=active?`${type}を記録しました`:`${type}の記録を取り消しました`;
+        const name=$('#employee').value,date=keyDate(new Date()),rows=readSupplementDrafts(),draft=rows.find(item=>item.name===name&&item.date===date&&item.type===type),active=!(draft?draft.active:data.records.some(record=>record.name===name&&record.date===date&&record.type===type));
+        writeSupplementDrafts([...rows.filter(item=>!(item.name===name&&item.date===date&&item.type===type)),{name,date,type,active}]);
+        updateSupplementButtons();
+        $('#notice').textContent=`${type} ${active?'ON':'OFF'}：日付が変わると確定します`;
         if(active)playAnimalForType(type);
-      }finally{supplementBusy=false;updateSupplementButtons();}
+      }catch(error){alert('スマホ内に状態を保存できません。空き容量やブラウザーの保存設定を確認してください。');
+      }finally{supplementPending=null;supplementBusy=false;updateSupplementButtons();}
     }
     $('#nightCount').addEventListener('click',()=>toggleSupplement('夜勤'));
     $('#tripCount').addEventListener('click',()=>toggleSupplement('出張'));
