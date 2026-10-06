@@ -8,7 +8,7 @@
   function cached(gameId){try{const value=JSON.parse(localStorage.getItem(cacheKey(gameId))||'null');if(value&&Array.isArray(value.rows)&&value.rows.every(r=>typeof r.name==='string'&&(r.score===null||Number.isInteger(r.score))&&(r.rank===null||Number.isInteger(r.rank))))return value;}catch{}return null;}
   function remember(gameId,rows){try{localStorage.setItem(cacheKey(gameId),JSON.stringify({time:Date.now(),rows}));}catch{}}
   function savedBest(gameId,name){const c=cached(gameId);if(!c||Date.now()-c.time>300000)return null;return c.rows.find(r=>r.name===name)?.score??null;}
-  function previous(gameId){const c=cached(gameId);if(!c)return false;render(c.rows);status.textContent='前回のランキングを表示中・最新情報を確認しています…';return true;}
+  function previous(gameId){byId('mathRankingRows').textContent='最新ランキングを取得中…';status.textContent='最新情報を確認しています…';return false;}
   gameReady.then(ok=>{if(ok&&pending.size)savePending();});
   async function request(payload){if(!API)return {ok:false,error:'共有先が未設定です'};let timer;try{return await Promise.race([callShared(payload),new Promise(resolve=>{timer=setTimeout(()=>resolve({ok:false,error:'ランキングの応答を確認できません。勤怠アプリから開き直してください。'}),65000)})]);}catch{return {ok:false,error:'通信できませんでした'};}finally{clearTimeout(timer);}}
   async function authenticate(){if(!await verifyPunchIdentity())return null;const r=readDeviceRegistration();if(!r||r.name!==byId('employee').value)return null;return {name:r.name,deviceToken:r.deviceToken};}
