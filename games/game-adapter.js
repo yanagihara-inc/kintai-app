@@ -40,6 +40,7 @@ const gameReady=(async()=>{
   if(!gameSession.token)throw new Error('ゲーム専用の認証情報を取得できませんでした');
   sessionStorage.setItem(GAME_SESSION_KEY,JSON.stringify(gameSession));sessionStorage.removeItem(GAME_TICKET_KEY);
   try{localStorage.setItem(GAME_SAVED_SESSION_KEY,JSON.stringify(gameSession))}catch{}
+  if(result.leaders)window.PASTIME_STARTUP_LEADERS=result.leaders;
   nameInput.value=gameSession.name;connectionLabel.textContent='ゲーム専用サーバーに接続・登録メンバーの共有ランキング';return true;
  }catch(error){gameSession=null;sessionError=error.message;connectionLabel.textContent=launchName?'ゲームは遊べます。共有ランキングは接続できませんでした。':sessionError;return false;}
 })();
