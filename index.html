@@ -225,7 +225,39 @@
     function setLoading(active,message='起動中\nデータを読み込んでいます',error=false){const screen=$('#loadingScreen');screen.hidden=!active;screen.classList.toggle('error',error);$('#loadingText').innerHTML=esc(message).replaceAll('\n','<br>');$('#loadingRetry').hidden=!error;document.querySelectorAll('.punch,#employee,#personalOpen,#holidayOpen,#whoOpen,#gamesOpen,#correctionOpen,#nightCount,#tripCount,#animalPreviewOpen,#correctionReviewOpen').forEach(element=>element.disabled=active);if(!active){updateSupplementButtons();updatePunchButtons();}}
     function verifyAdmin(pin,onVerified=admin){const callback='kintaiAdmin_'+Date.now(),script=document.createElement('script');window[callback]=result=>{delete window[callback];script.remove();if(result.ok){adminPin=pin;data={...data,...(result.data||{})};save();onVerified();}else alert('管理者名または暗証番号が違います');};script.src=`${API}?action=verifyAdmin&name=${encodeURIComponent($('#employee').value)}&pin=${encodeURIComponent(pin)}&callback=${callback}`;script.onerror=()=>alert('管理者確認に失敗しました');document.head.appendChild(script);}
 let startupLoadGeneration=0;
-function loadShared(attempt=0,startedAt=Date.now(),generation=++startupLoadGeneration){if(generation!==startupLoadGeneration)return;setLoading(true,attempt?'再接続中\nデータを読み込んでいます':'起動中\nデータを読み込んでいます');if(!API){setLoading(false);$('#notice').textContent='起動しました';return;}const registration=readDeviceRegistration(),callback='kintaiData_'+Date.now()+'_'+generation+'_'+attempt;let timer;const cleanup=()=>{clearTimeout(timer);delete window[callback];script.remove();};window[callback]=payload=>{cleanup();if(generation!==startupLoadGeneration)return;if(payload.ok){try{data={...data,...payload.data};const pendingPunches=readPendingQueue().filter(item=>item.payload.action==='punch').map(item=>item.payload),known=new Set(data.records.map(record=>`${record.name}|${record.date}|${record.type}|${record.at}`));pendingPunches.forEach(record=>{const key=`${record.name}|${record.date}|${record.type}|${record.at}`;if(!known.has(key))data.records.push({...record,pending:true});});configVersion=String(payload.data.configVersion||configVersion);if(payload.data.configChanged)saveConfig();render();setLoading(false);startupReady=true;setTimeout(runStartupExtras,0);$('#notice').textContent=readPendingQueue().length?'送信待ちの打刻があります。通信回復後に自動送信します。':payload.data.configChanged?'設定と当日の打刻を更新しました':'当日の打刻を更新しました';flushPendingQueue();setTimeout(()=>{if(!readPendingQueue().length)$('#notice').textContent='';},2500);}catch(error){setLoading(true,'起動データを処理できません\nもう一度読み込むを押してください',true);}}else setLoading(true,payload.error||'データを読み込めません',true);};const script=document.createElement('script');script.src=`${API}?action=${registration?'personalBootstrap':'bootstrap'}${registration?'&name='+encodeURIComponent(registration.name)+'&deviceToken='+encodeURIComponent(registration.deviceToken):''}&configVersion=${encodeURIComponent(configVersion)}&callback=${callback}`;const remaining=Math.max(0,10000-(Date.now()-startedAt)),failed=()=>{cleanup();if(generation!==startupLoadGeneration)return;if(attempt===0&&Date.now()-startedAt<10000)return loadShared(1,startedAt,generation);setLoading(true,'データを読み込めません\n通信を確認して再読み込みしてください',true);};script.onerror=failed;timer=setTimeout(failed,remaining);document.head.appendChild(script);}
+function loadShared(attempt=0,startedAt=Date.now(),generation=++startupLoadGeneration){
+  if(generation!==startupLoadGeneration)return;
+  setLoading(true,attempt?'再接続中\nデータを読み込んでいます':'起動中\nデータを読み込んでいます');
+  if(!API){setLoading(false);$('#notice').textContent='起動しました';return;}
+  const registration=readDeviceRegistration(),callback='kintaiData_'+Date.now()+'_'+generation+'_'+attempt;
+  const script=document.createElement('script');
+  let timer,slowTimer,settled=false;
+  const cleanup=()=>{settled=true;clearTimeout(timer);clearTimeout(slowTimer);delete window[callback];script.remove();};
+  window[callback]=payload=>{
+    if(settled)return;
+    cleanup();
+    if(generation!==startupLoadGeneration)return;
+    if(payload.ok){try{data={...data,...payload.data};const pendingPunches=readPendingQueue().filter(item=>item.payload.action==='punch').map(item=>item.payload),known=new Set(data.records.map(record=>`${record.name}|${record.date}|${record.type}|${record.at}`));pendingPunches.forEach(record=>{const key=`${record.name}|${record.date}|${record.type}|${record.at}`;if(!known.has(key))data.records.push({...record,pending:true});});configVersion=String(payload.data.configVersion||configVersion);if(payload.data.configChanged)saveConfig();render();setLoading(false);startupReady=true;setTimeout(runStartupExtras,0);$('#notice').textContent=readPendingQueue().length?'送信待ちの打刻があります。通信回復後に自動送信します。':payload.data.configChanged?'設定と当日の打刻を更新しました':'当日の打刻を更新しました';flushPendingQueue();setTimeout(()=>{if(!readPendingQueue().length)$('#notice').textContent='';},2500);}catch(error){setLoading(true,'起動データを処理できません\nもう一度読み込むを押してください',true);}}else setLoading(true,payload.error||'データを読み込めません',true);}
+  ;
+  script.src=`${API}?action=${registration?'personalBootstrap':'bootstrap'}${registration?'&name='+encodeURIComponent(registration.name)+'&deviceToken='+encodeURIComponent(registration.deviceToken):''}&configVersion=${encodeURIComponent(configVersion)}&callback=${callback}`;
+  const remaining=Math.max(0,30000-(Date.now()-startedAt));
+  script.onerror=()=>{
+    if(settled)return;
+    cleanup();
+    if(generation!==startupLoadGeneration)return;
+    if(attempt===0&&Date.now()-startedAt<30000)return loadShared(1,startedAt,generation);
+    setLoading(true,'通信できませんでした\n通信を確認して再読み込みしてください',true);
+  };
+  slowTimer=setTimeout(()=>{
+    if(!settled&&generation===startupLoadGeneration)setLoading(true,'Googleの応答を待っています\n通信は継続中です。押し直す必要はありません');
+  },Math.max(0,10000-(Date.now()-startedAt)));
+  timer=setTimeout(()=>{
+    if(settled)return;
+    cleanup();
+    if(generation===startupLoadGeneration)setLoading(true,'Googleからの応答が遅れています\n少し時間をおいて再読み込みしてください',true);
+  },remaining);
+  document.head.appendChild(script);
+}
     function readDeviceRegistration(){try{const value=JSON.parse(localStorage.getItem(DEVICE_REGISTRATION_KEY)||'null');return value&&value.name&&value.deviceToken?value:null;}catch(_){return null;}}
     function canUseDesktopAdmin(){return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&!(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)&&data.admins.includes($('#employee').value);}
 function render(){ const sel=$('#employee'),registration=readDeviceRegistration(),available=registration&&data.employees.includes(registration.name)?[registration.name]:data.employees,current=registration?.name||sel.value||localStorage.getItem(SELECTED_EMPLOYEE_KEY);sel.innerHTML=available.map(n=>`<option>${n}</option>`).join('');if(available.includes(current))sel.value=current;sel.disabled=!!registration;localStorage.setItem(SELECTED_EMPLOYEE_KEY,sel.value);$('#companyName').textContent=data.companyName||'会社名を設定';const isAdmin=data.admins.includes(sel.value);$('#animalPreviewOpen').hidden=!isAdmin;$('#adminBadge').hidden=!isAdmin;updateCorrectionReviewButton();const who=sel.value,today=keyDate(new Date());const rows=data.records.filter(r=>r.name===who&&r.date===today).sort((a,b)=>b.at-a.at),todaySites=[...new Set(rows.flatMap(r=>r.sites||[]).filter(Boolean))];$('#todaySites').innerHTML=todaySites.length?todaySites.map(site=>`<span class="today-site-name">${esc(site)}</span>`).join(''):'未選択';$('#history').innerHTML=rows.length?rows.map(r=>`<div class="row"><div><span class="tag ${['退勤','直帰'].includes(r.type)?'end':''}">${r.type}</span>${r.expectedReturn?`<div class="hint">戻り予定：${esc(r.expectedReturn)}</div>`:''}</div><div class="time">${new Date(r.at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div></div>`).join(''):'<div class="empty">まだ打刻はありません</div>';}
