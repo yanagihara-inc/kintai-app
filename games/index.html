@@ -84,6 +84,11 @@
 </div>
 </div>
 </dialog>
+<section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
+<h2>フラッシュ暗算</h2>
+<p>順番に出る数字の合計を答えよう。</p>
+<button class="primary" id="flashGameOpen">遊ぶ</button>
+</section>
 </main>
 <script src="game-config.js">
 </script>
@@ -94,4 +99,5 @@
 <script src="game-leaders.js?v=latest-20261006">
 </script>
 <script>document.getElementById('gameExit').onclick=exitGameApp;</script>
+<script>document.getElementById('flashGameOpen').onclick=async()=>{if(!await verifyPunchIdentity())return;const dialog=document.getElementById('mathGameDialog');const frame=document.createElement('iframe');frame.id='mathGameFrame';frame.title='フラッシュ暗算';frame.setAttribute('sandbox','allow-scripts');frame.src='./flash-math.html';dialog.append(frame);document.getElementById('mathGamePlayer').textContent='フラッシュ暗算';dialog.showModal();};</script>
 </html>
