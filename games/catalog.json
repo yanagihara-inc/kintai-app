@@ -48,7 +48,7 @@
     "unit": "点"
   },
   "memory": {
-    "title": "ひかる順番",
+    "title": "フラッシュメモリー",
     "file": "memory-nine.html",
     "result": "memory-game-result",
     "unit": "レベル"
