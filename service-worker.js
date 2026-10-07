@@ -1,4 +1,4 @@
-const CACHE='rakuraku-kintai-shell-v124';
+const CACHE='rakuraku-kintai-shell-v125';
 const APP_FILES=['./','./index.html','./app-config.js'];
 const OPTIONAL_FILES=['./integration/games-loader.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./fox-runner.png'];
 
