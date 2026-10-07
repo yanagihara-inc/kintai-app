@@ -37,7 +37,7 @@
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>三本道迷路</h3>
 <p class="hint">動物のいる道を選ぼう。モンスターの道は危険！</p>
-<div class="game-actions"><button class="primary" id="mazeGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="mazeRankingOpen">ランキング</button></div>
+<div class="game-actions"><button class="primary" id="mazeGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="mazeRankingOpen">通常ランキング</button></div><div class="ranking-row"><button class="secondary" id="mazeFastRankingOpen">高速ランキング</button></div>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>順番タップ</h3>
@@ -60,7 +60,7 @@
 <button class="primary" id="formworkGameOpen">遊ぶ</button>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h3>フラッシュ暗算</h3><p>順番に出る数字の合計を答えよう。</p><div class="game-actions"><button class="primary" id="flashGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="flashRankingOpen">ランキング</button></div></section>
-<section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h3>ハイスピードラン</h3><p>スクーターで岩や水のたまった穴をよけよう。100mごとにスピードアップ！</p><div class="game-actions"><button class="primary" id="runnerGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="runnerRankingOpen">ランキング</button></div></section>
+<section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h3>ハイスピードラン</h3><p>スクーターで岩や水のたまった穴をよけよう。100mごとにスピードアップ！</p><div class="game-actions"><button class="primary" id="runnerGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="runnerRankingOpen">通常ランキング</button></div><div class="ranking-row"><button class="secondary" id="runnerFastRankingOpen">高速ランキング</button></div></section>
 <p id="mathGameSaveStatus" class="hint" role="status">
 </p>
 <button id="mathGameRetry" class="secondary" hidden>得点の保存を再試行</button>
@@ -91,9 +91,9 @@
 </script>
 <script src="game-adapter.js?v=latest-20261006">
 </script>
-<script src="math-ranking.js?v=math30-20261007">
+<script src="math-ranking.js?v=runner-fast-20261007">
 </script>
-<script src="game-leaders.js?v=math30-20261007">
+<script src="game-leaders.js?v=runner-fast-20261007">
 </script>
 <script>document.getElementById('gameExit').onclick=exitGameApp;</script>
 </html>
