@@ -46,5 +46,11 @@
     "file": "formwork-game.html",
     "result": "formwork-game-result",
     "unit": "点"
+  },
+  "memory": {
+    "title": "ひかる順番",
+    "file": "memory-nine.html",
+    "result": "memory-game-result",
+    "unit": "レベル"
   }
 }
