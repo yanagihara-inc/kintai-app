@@ -3,7 +3,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>暇つぶしアプリ</title>
-<style>*{box-sizing:border-box}body{margin:0;background:#eef3f7;color:#243c51;font-family:system-ui,sans-serif}header{padding:16px;background:#214965;color:white}header h1{margin:0;font-size:24px}main{max-width:600px;margin:auto;padding:12px}input,button{font:inherit;padding:10px;border-radius:9px}button{cursor:pointer;border:0}button.primary{background:#357bad;color:white}button.secondary{background:#dce9f1;color:#243c51}.hint{font-size:13px;line-height:1.6}.modal{padding:12px}h3{margin-top:0}.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}dialog{border:0;border-radius:12px;width:min(95vw,600px);max-height:95dvh;overflow:auto}dialog::backdrop{background:#12233388}#mathGameDialog{width:min(100vw,520px);height:100dvh;max-height:100dvh;max-width:100vw;padding:0;border-radius:0;overflow:hidden;margin:auto}#mathGameDialog[open]{display:flex;flex-direction:column}.math-game-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px;background:#e9f0f5;font-size:12px}.math-game-toolbar button{padding:8px}#mathGameFrame{border:0;flex:1;min-height:0;width:100%}.report{width:100%;border-collapse:collapse}.report th,.report td{padding:8px;border-bottom:1px solid #ddd}.identity{margin-top:14px;display:flex;flex-direction:column;gap:8px;font-size:15px}.identity label{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-weight:700}.identity input{width:min(100%,280px);padding:10px 12px;font-size:20px;font-weight:700;background:#fff;color:#18384f;border:2px solid #b8d8ed;opacity:1;-webkit-text-fill-color:#18384f}.identity input:disabled{opacity:1;background:#fff;color:#18384f;-webkit-text-fill-color:#18384f}#connectionLabel{font-size:13px;color:#e1edf5}.header-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}#gameExit{background:#e8f3fa;color:#214965;font-size:14px;font-weight:700;min-height:44px}.game-leader{display:inline-block;margin:8px 0 0 10px;max-width:100%;font-size:15px;font-weight:700;color:#214965;overflow-wrap:anywhere;vertical-align:middle}@media(max-width:420px){.game-leader{display:block;margin-left:0}} </style>
+<style>*{box-sizing:border-box}body{margin:0;background:#eef3f7;color:#243c51;font-family:system-ui,sans-serif}header{padding:16px;background:#214965;color:white}header h1{margin:0;font-size:24px}main{max-width:600px;margin:auto;padding:12px}input,button{font:inherit;padding:10px;border-radius:9px}button{cursor:pointer;border:0}button.primary{background:#357bad;color:white}button.secondary{background:#dce9f1;color:#243c51}.hint{font-size:13px;line-height:1.6}.modal{padding:12px}h3{margin-top:0}.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:12px}dialog{border:0;border-radius:12px;width:min(95vw,600px);max-height:95dvh;overflow:auto}dialog::backdrop{background:#12233388}#mathGameDialog{width:min(100vw,520px);height:100dvh;max-height:100dvh;max-width:100vw;padding:0;border-radius:0;overflow:hidden;margin:auto}#mathGameDialog[open]{display:flex;flex-direction:column}.math-game-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px;background:#e9f0f5;font-size:12px}.math-game-toolbar button{padding:8px}#mathGameFrame{border:0;flex:1;min-height:0;width:100%}.report{width:100%;border-collapse:collapse}.report th,.report td{padding:8px;border-bottom:1px solid #ddd}.identity{margin-top:14px;display:flex;flex-direction:column;gap:8px;font-size:15px}.identity label{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-weight:700}.identity input{width:min(100%,280px);padding:10px 12px;font-size:20px;font-weight:700;background:#fff;color:#18384f;border:2px solid #b8d8ed;opacity:1;-webkit-text-fill-color:#18384f}.identity input:disabled{opacity:1;background:#fff;color:#18384f;-webkit-text-fill-color:#18384f}#connectionLabel{font-size:13px;color:#e1edf5}.header-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}#gameExit{background:#e8f3fa;color:#214965;font-size:14px;font-weight:700;min-height:44px}.game-leader{display:inline-block;margin:8px 0 0 10px;max-width:100%;font-size:15px;font-weight:700;color:#214965;overflow-wrap:anywhere;vertical-align:middle}@media(max-width:420px){.game-leader{display:block;margin-left:0}} .game-actions{margin-top:12px}.game-actions button{min-width:90px;min-height:44px}.ranking-row{display:grid;grid-template-columns:140px minmax(0,1fr);gap:10px;align-items:center;margin-top:10px}.ranking-row button{min-height:44px;width:100%}.ranking-row .game-leader{display:block;margin:0;min-width:0;line-height:1.5;font-size:14px}@media(max-width:360px){.ranking-row{grid-template-columns:120px minmax(0,1fr);gap:8px}.ranking-row button{padding:10px 6px;font-size:13px}} </style>
 <header>
 <div class="header-heading">
 <h1>暇つぶし</h1>
@@ -22,43 +22,45 @@
 <section style="padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>すうしきドロップ</h3>
 <p class="hint">落ちてくる式を解こう。答えは1〜9！</p>
-<button class="primary" id="mathGameOpen">遊ぶ</button> <button class="secondary" id="mathRankingOpen">通常ランキング</button><div style="margin-top:10px"><button class="secondary" id="math30RankingOpen">30秒ランキング</button></div>
+<div class="game-actions"><button class="primary" id="mathGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="mathRankingOpen">通常ランキング</button></div><div class="ranking-row"><button class="secondary" id="math30RankingOpen">30秒ランキング</button></div>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>数字もぐら</h3>
 <p class="hint">9個の穴の数字をたたこう。成功すると時間延長！</p>
-<button class="primary" id="moleGameOpen">遊ぶ</button> <button class="secondary" id="moleRankingOpen">ランキング</button>
+<div class="game-actions"><button class="primary" id="moleGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="moleRankingOpen">ランキング</button></div>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>ナンバードロップ</h3>
 <p class="hint">落ちてくる数字を、1〜9のボタンで消そう！</p>
-<button class="primary" id="dropGameOpen">遊ぶ</button> <button class="secondary" id="dropRankingOpen">ランキング</button>
+<div class="game-actions"><button class="primary" id="dropGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="dropRankingOpen">ランキング</button></div>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>三本道迷路</h3>
 <p class="hint">動物のいる道を選ぼう。モンスターの道は危険！</p>
-<button class="primary" id="mazeGameOpen">遊ぶ</button> <button class="secondary" id="mazeRankingOpen">ランキング</button>
+<div class="game-actions"><button class="primary" id="mazeGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="mazeRankingOpen">ランキング</button></div>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>順番タップ</h3>
 <p class="hint">数字を1から順番にタップ。60秒で何個押せる？</p>
-<button class="primary" id="orderGameOpen">遊ぶ</button> <button class="secondary" id="orderRankingOpen">ランキング</button>
+<div class="game-actions"><button class="primary" id="orderGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="orderRankingOpen">ランキング</button></div>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>色当て</h3>
 <p class="hint">見本と同じ色を選ぼう。進むほど似た色に！</p>
-<button class="primary" id="colorGameOpen">遊ぶ</button> <button class="secondary" id="colorRankingOpen">ランキング</button>
+<div class="game-actions"><button class="primary" id="colorGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="colorRankingOpen">ランキング</button></div>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>宝箱えらび</h3>
 <p class="hint">3つの宝箱で運試し。当たりを連続で引こう！</p>
-<button class="primary" id="chestGameOpen">遊ぶ</button> <button class="secondary" id="chestRankingOpen">ランキング</button>
+<div class="game-actions"><button class="primary" id="chestGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="chestRankingOpen">ランキング</button></div>
 </section>
 <section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>型枠の組立て</h3>
 <p class="hint">順番を守って型枠を組もう。</p>
 <button class="primary" id="formworkGameOpen">遊ぶ</button>
 </section>
+<section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h3>フラッシュ暗算</h3><p>順番に出る数字の合計を答えよう。</p><div class="game-actions"><button class="primary" id="flashGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="flashRankingOpen">ランキング</button></div></section>
+<section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h3>ハイスピードラン</h3><p>スクーターで岩や水のたまった穴をよけよう。100mごとにスピードアップ！</p><div class="game-actions"><button class="primary" id="runnerGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="runnerRankingOpen">ランキング</button></div></section>
 <p id="mathGameSaveStatus" class="hint" role="status">
 </p>
 <button id="mathGameRetry" class="secondary" hidden>得点の保存を再試行</button>
@@ -84,7 +86,7 @@
 </div>
 </div>
 </dialog>
-<section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h2>フラッシュ暗算</h2><p>順番に出る数字の合計を答えよう。</p><button class="primary" id="flashGameOpen">遊ぶ</button> <button class="secondary" id="flashRankingOpen">ランキング</button></section><section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h2>ハイスピードラン</h2><p>スクーターで岩や水のたまった穴をよけよう。100mごとにスピードアップ！</p><button class="primary" id="runnerGameOpen">遊ぶ</button> <button class="secondary" id="runnerRankingOpen">ランキング</button></section></main>
+</main>
 <script src="game-config.js">
 </script>
 <script src="game-adapter.js?v=latest-20261006">
