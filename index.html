@@ -165,7 +165,7 @@
 <body>
   <div class="shell">
     <div id="loadingScreen" class="loading-screen"><div class="loading-card"><div class="spinner"></div><p id="loadingText">起動中<br>データを読み込んでいます</p><button id="loadingRetry" hidden>もう一度読み込む</button></div></div>
-    <header><div class="brand"><div class="brand-title"><img class="brand-mark" src="icon-192.png" alt=""><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><div class="admin-tools"><button class="animal-preview-open" id="animalPreviewOpen" type="button" hidden>🐾 動物を確認</button></div></div><div class="today" id="today"></div><div class="clock-line"><div id="clock">--:--</div><div class="header-tools"><button class="who-open" id="whoOpen">👤📍<br>誰どこ</button><button class="who-open" id="gamesOpen" type="button" aria-label="暇つぶしアプリを開く" title="登録済みの本人端末からゲームアプリを開きます">🎯<br>暇つぶし</button><button class="holiday-open" id="holidayOpen">📅 休日<br>カレンダー</button></div></div></header>
+    <header><div class="brand"><div class="brand-title"><img class="brand-mark" src="icon-192.png" alt=""><div class="brand-copy"><h1>らくらく勤怠</h1><span id="companyName">会社名を設定</span></div></div><div class="admin-tools"><button class="animal-preview-open" id="animalPreviewOpen" type="button" hidden>🐾 動物を確認</button></div></div><div class="today" id="today"></div><div class="clock-line"><div id="clock">--:--</div><div class="header-tools"><button class="who-open" id="whoOpen">👤📍<br>誰どこ</button><button class="who-open" id="gamesOpen" type="button" aria-label="暇つぶしアプリを開く" title="登録済みの本人端末からゲームアプリを開きます">🎯<br>暇つぶし</button><button class="holiday-open" id="holidayOpen">📅<br>カレンダー</button></div></div></header>
     <main>
       <div class="person"><div><label>打刻する人</label><div class="person-name-line"><select id="employee"></select><span class="admin-badge" id="adminBadge" hidden>管理者</span></div></div></div>
       <button id="correctionReviewOpen" type="button" hidden style="width:100%;margin:4px 0 12px;padding:12px 14px;border-radius:12px;font-size:16px">打刻修正依頼</button>
@@ -190,6 +190,7 @@
   <dialog id="adminDialog"><div class="modal" id="adminContent"></div></dialog>
   <dialog id="siteDialog"><div class="modal" id="siteContent"></div></dialog>
   <dialog id="personalDialog"><div class="modal" id="personalContent"></div></dialog>
+  <dialog id="calendarSelectDialog"><div class="modal"><h2>カレンダー</h2><p class="hint">表示するカレンダーを選んでください。</p><div style="display:grid;gap:12px"><button class="primary" id="selectHolidayCalendar" type="button">📅 休日カレンダー</button><button class="primary" id="selectScheduleCalendar" type="button">📆 予定カレンダー</button></div><div class="modal-actions"><button class="secondary" type="button" onclick="calendarSelectDialog.close()">キャンセル</button></div></div></dialog>
   <dialog id="holidayDialog"><div class="modal"><h2>休日カレンダー</h2><label class="field">表示する月<input id="holidayMonth" type="month"></label><div id="holidayCalendar"></div><div class="modal-actions"><button class="secondary" onclick="holidayDialog.close()">閉じる</button></div></div></dialog>
   <dialog id="whoDialog"><div class="modal"><h2>誰どこ</h2><div id="whoContent"></div><div class="modal-actions"><button class="secondary" onclick="whoDialog.close()">閉じる</button></div></div></dialog>
   <script src="app-config.js"></script>
@@ -222,7 +223,7 @@
     function queueShared(payload){const queue=readPendingQueue(),key=`${payload.action}|${payload.name||''}|${payload.date||''}|${payload.type||''}|${payload.at||''}`,existing=queue.find(item=>item.key===key);if(existing){existing.payload=payload;existing.queuedAt=Date.now();}else queue.push({key,payload,queuedAt:Date.now()});writePendingQueue(queue);}
     async function postShared(payload){const result=await callShared(payload);if(result.ok){if(payload.action==='punch'&&result.id){const record=data.records.find(item=>item.name===payload.name&&item.date===payload.date&&item.type===payload.type&&item.at===payload.at);if(record)record.id=result.id;}return true;}if(result.networkError&&['punch','updateRecordSites'].includes(payload.action)){queueShared(payload);$('#notice').textContent='通信できないため端末に保存しました。通信回復後に自動送信します。';renderMissingPunchWarning();return false;}if(payload.action==='punch'&&String(result.error||'').includes('端末')){localStorage.removeItem(DEVICE_REGISTRATION_KEY);data.records=data.records.filter(record=>!(record.name===payload.name&&record.date===payload.date&&record.type===payload.type&&record.at===payload.at));render();}$('#notice').textContent=`共有保存に失敗しました：${result.error||'設定を確認してください'}`;return false;}
     async function flushPendingQueue(){if(!API||!navigator.onLine)return;let queue=readPendingQueue(),sent=0;for(const item of [...queue]){const result=await callShared(item.payload);if(!result.ok){if(!result.networkError){queue=queue.filter(value=>value.key!==item.key);$('#notice').textContent=`送信待ちデータを確認してください：${result.error||'保存できません'}`;}break;}queue=queue.filter(value=>value.key!==item.key);sent++;writePendingQueue(queue);}writePendingQueue(queue);if(sent)$('#notice').textContent=`通信回復後、送信待ち${sent}件を保存しました。`;}
-    function setLoading(active,message='起動中\nデータを読み込んでいます',error=false){const screen=$('#loadingScreen');screen.hidden=!active;screen.classList.toggle('error',error);$('#loadingText').innerHTML=esc(message).replaceAll('\n','<br>');$('#loadingRetry').hidden=!error;document.querySelectorAll('.punch,#employee,#personalOpen,#holidayOpen,#whoOpen,#gamesOpen,#correctionOpen,#nightCount,#tripCount,#animalPreviewOpen,#correctionReviewOpen').forEach(element=>element.disabled=active);if(!active){updateSupplementButtons();updatePunchButtons();}}
+    function setLoading(active,message='起動中\nデータを読み込んでいます',error=false){const screen=$('#loadingScreen');screen.hidden=!active;screen.classList.toggle('error',error);$('#loadingText').innerHTML=esc(message).replaceAll('\n','<br>');$('#loadingRetry').hidden=!error;document.querySelectorAll('.punch,#employee,#personalOpen,#sharedCalendarOpen,#holidayOpen,#whoOpen,#gamesOpen,#correctionOpen,#nightCount,#tripCount,#animalPreviewOpen,#correctionReviewOpen').forEach(element=>element.disabled=active);if(!active){updateSupplementButtons();updatePunchButtons();}}
     function verifyAdmin(pin,onVerified=admin){const callback='kintaiAdmin_'+Date.now(),script=document.createElement('script');window[callback]=result=>{delete window[callback];script.remove();if(result.ok){adminPin=pin;data={...data,...(result.data||{})};save();onVerified();}else alert('管理者名または暗証番号が違います');};script.src=`${API}?action=verifyAdmin&name=${encodeURIComponent($('#employee').value)}&pin=${encodeURIComponent(pin)}&callback=${callback}`;script.onerror=()=>alert('管理者確認に失敗しました');document.head.appendChild(script);}
 let startupLoadGeneration=0;
 function loadShared(attempt=0,startedAt=Date.now(),generation=++startupLoadGeneration){
@@ -267,7 +268,8 @@ function updateSupplementButtons(){const name=$('#employee').value,date=keyDate(
     const baseRenderWithNightCount=render;render=function(){baseRenderWithNightCount();updateSupplementButtons();updatePunchButtons();renderMissingPunchWarning();};
 function tick(){const d=new Date(),date=keyDate(d);if(window.kintaiDisplayedDate&&window.kintaiDisplayedDate!==date){render();loadShared();flushFinalSupplements();}window.kintaiDisplayedDate=date;$('#today').textContent=jpDate(d);$('#clock').textContent=d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});if(d.getSeconds()===0)renderMissingPunchWarning();} tick();setInterval(tick,1000);render();loadShared();
     $('#employee').addEventListener('change',()=>{localStorage.setItem(SELECTED_EMPLOYEE_KEY,$('#employee').value);render();});
-    $('#holidayOpen').addEventListener('click',()=>{const month=keyDate(new Date()).slice(0,7);$('#holidayMonth').value=month;renderHolidayCalendar(month);$('#holidayDialog').showModal();});
+    $('#holidayOpen').addEventListener('click',()=>$('#calendarSelectDialog').showModal());
+    $('#selectHolidayCalendar').onclick=()=>{const month=keyDate(new Date()).slice(0,7);$('#calendarSelectDialog').close();$('#holidayMonth').value=month;renderHolidayCalendar(month);$('#holidayDialog').showModal();};
     function renderWhoWhere(){const today=keyDate(new Date()),rows=data.records.filter(record=>record.date===today),body=data.employees.map(name=>{const personal=rows.filter(record=>record.name===name).sort((a,b)=>a.at-b.at),start=personal.some(record=>['出勤','直行'].includes(record.type)),end=personal.some(record=>['退勤','直帰'].includes(record.type)),status=end?'退勤済み':start?'出勤中':'未出勤',sites=[...new Set(personal.flatMap(record=>record.sites||[]).filter(Boolean))];return `<tr><td>${esc(name)}</td><td>${status}</td><td>${sites.length?sites.map(esc).join('、'):'—'}</td></tr>`;}).join('');$('#whoContent').innerHTML=`<table class="who-table"><thead><tr><th>氏名</th><th>出勤状況</th><th>行先</th></tr></thead><tbody>${body}</tbody></table>`;$('#whoDialog').showModal();}
     $('#whoOpen').addEventListener('click',()=>{if(!API)return renderWhoWhere();const button=$('#whoOpen');button.disabled=true;const callback='kintaiWho_'+Date.now(),script=document.createElement('script');window[callback]=payload=>{delete window[callback];script.remove();button.disabled=false;if(payload.ok){data={...data,...payload.data};render();renderWhoWhere();}else alert(payload.error||'誰どこを更新できません');};script.src=`${API}?action=bootstrap&configVersion=${encodeURIComponent(configVersion)}&callback=${callback}`;script.onerror=()=>{delete window[callback];script.remove();button.disabled=false;alert('誰どこを更新できません。通信を確認してください。');};document.head.appendChild(script);});
     $('#holidayMonth').addEventListener('change',event=>renderHolidayCalendar(event.target.value));
@@ -491,5 +493,23 @@ $('#personalOpen').addEventListener('click',()=>{const dialog=$('#personalDialog
     window.addEventListener('online',()=>flushPendingQueue());
     let installEvent;const install=$('#install');window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();installEvent=event;install.hidden=false;});install.addEventListener('click',async()=>{if(!installEvent)return;installEvent.prompt();await installEvent.userChoice;install.hidden=true;installEvent=null;});window.addEventListener('appinstalled',()=>{install.hidden=true;});if('serviceWorker' in navigator)navigator.serviceWorker.register('./service-worker.js');
   </script>
+<link rel="stylesheet" href="shared-calendar.css">
+<script src="shared-calendar.js"></script>
+<script src="calendar-local-store.js"></script>
+<script>
+const calendarLocalMode=location.protocol==='file:';
+let calendarLocalRequest;
+const calendarLocalReady=calendarLocalMode?new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='calendar-local-seed.js';script.onload=resolve;script.onerror=()=>reject(Error('ローカル予定を読み込めません'));document.head.appendChild(script);}):Promise.resolve();
+const sharedCalendar=createSharedCalendar({
+  getSites:()=>data.sites,
+  getIdentity:()=>{const registered=readDeviceRegistration();return {name:registered?.name||$('#employee').value,deviceToken:registered?.deviceToken||''};},
+  request:async payload=>{if(!calendarLocalMode)return callShared(payload);await calendarLocalReady;calendarLocalRequest ||=createCalendarLocalRequest(name=>data.admins.includes(name));return calendarLocalRequest(payload);},
+  localPreview:calendarLocalMode,
+  isAdmin:name=>data.admins.includes(name),
+  holidayName,
+  notify:message=>{$('#notice').textContent=message;}
+});
+$('#selectScheduleCalendar').onclick=async()=>{if(!$('#loadingScreen').hidden)return;$('#calendarSelectDialog').close();if(calendarLocalMode||await verifyPunchIdentity())sharedCalendar.open();};
+</script>
 <script src="integration/games-loader.js"></script>
 </body></html>
