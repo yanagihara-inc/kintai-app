@@ -274,7 +274,30 @@ function tick(){const d=new Date(),date=keyDate(d);if(window.kintaiDisplayedDate
     $('#whoOpen').addEventListener('click',()=>{if(!API)return renderWhoWhere();const button=$('#whoOpen');button.disabled=true;const callback='kintaiWho_'+Date.now(),script=document.createElement('script');window[callback]=payload=>{delete window[callback];script.remove();button.disabled=false;if(payload.ok){data={...data,...payload.data};render();renderWhoWhere();}else alert(payload.error||'誰どこを更新できません');};script.src=`${API}?action=bootstrap&configVersion=${encodeURIComponent(configVersion)}&callback=${callback}`;script.onerror=()=>{delete window[callback];script.remove();button.disabled=false;alert('誰どこを更新できません。通信を確認してください。');};document.head.appendChild(script);});
     $('#holidayMonth').addEventListener('change',event=>renderHolidayCalendar(event.target.value));
     function renderHolidayCalendar(month){if(!/^\d{4}-\d{2}$/.test(month))return;const [year,monthNumber]=month.split('-').map(Number),first=new Date(`${month}-01T00:00:00+09:00`),firstDay=first.getDay(),days=new Date(year,monthNumber,0).getDate(),cells=[];for(let index=0;index<firstDay;index++)cells.push('<div class="calendar-day blank"></div>');for(let day=1;day<=days;day++){const date=`${month}-${String(day).padStart(2,'0')}`,holiday=data.holidays.find(item=>item.date===date);cells.push(`<div class="calendar-day${holiday?' holiday':''}">${day}${holiday?`<small>${esc(holiday.name)}</small>`:''}</div>`);}$('#holidayCalendar').innerHTML=`<div class="calendar-head"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div><div class="calendar-grid">${cells.join('')}</div>`;}
-    async function verifyPunchIdentity(){const name=$('#employee').value,registration=readDeviceRegistration();if(registration?.name===name)return true;if(!data.pinConfiguredNames.includes(name)){alert(`${name}さんの個人PINが未設定です。\n先に「今月の勤怠記録」から数字3桁のPINを登録してください。`);return false;}const pin=prompt(`${name}さんの個人PIN（数字3桁）を入力してください\n※初回だけ、このスマホを本人端末として登録します`,'');if(pin===null)return false;if(!/^\d{3}$/.test(pin)){alert('個人PINを数字3桁で入力してください');return false;}const result=await callShared({action:'registerDevice',name,personalPin:pin});if(!result.ok){alert(result.error||'端末登録に失敗しました');return false;}localStorage.setItem(DEVICE_REGISTRATION_KEY,JSON.stringify({name:result.name,deviceToken:result.deviceToken}));$('#notice').textContent=`${name}さんの本人端末として登録しました。次回からPIN入力は不要です。`;render();return true;}
+    var devicePinVerification=null;
+    function showDevicePinRegistration(name){return new Promise(resolve=>{
+      const dialog=document.createElement('dialog');dialog.className='shared-calendar-dialog';
+      dialog.innerHTML='<div class="modal"><h2>本人端末の確認</h2><p>'+esc(name)+'さんの個人PINを入力してください。</p><p class="hint">初回だけ、この端末を本人端末として登録します。次回からPIN入力は不要です。</p><form><label class="field">個人PIN（数字3桁）<input name="personalPin" type="password" inputmode="numeric" pattern="[0-9]{3}" minlength="3" maxlength="3" autocomplete="off" required></label><p role="alert" data-pin-error></p><div class="modal-actions"><button type="button" class="secondary" data-pin-cancel>キャンセル</button><button type="submit" class="primary">確認する</button></div></form></div>';
+      document.body.appendChild(dialog);let finished=false;
+      const finish=ok=>{if(finished)return;finished=true;dialog.close();dialog.remove();resolve(ok);};
+      dialog.querySelector('[data-pin-cancel]').onclick=()=>finish(false);
+      dialog.oncancel=event=>{event.preventDefault();finish(false);};
+      dialog.querySelector('form').onsubmit=async event=>{
+        event.preventDefault();const field=dialog.querySelector('[name="personalPin"]'),pin=field.value,status=dialog.querySelector('[data-pin-error]');
+        if(!/^\d{3}$/.test(pin)){status.textContent='数字3桁で入力してください';return;}
+        const buttons=dialog.querySelectorAll('button');buttons.forEach(b=>b.disabled=true);field.disabled=true;status.textContent='本人端末を確認中…';
+        try{
+          const result=await callShared({action:'registerDevice',name,personalPin:pin});
+          if(finished)return;
+          if(!result.ok)throw Error(result.error||'端末登録に失敗しました');
+          if(!result.name||!result.deviceToken)throw Error('端末登録の応答を確認できません');
+          localStorage.setItem(DEVICE_REGISTRATION_KEY,JSON.stringify({name:result.name,deviceToken:result.deviceToken}));
+          $('#notice').textContent=name+'さんの本人端末として登録しました。';render();finish(true);
+        }catch(error){if(!finished){status.textContent=error.message;buttons.forEach(b=>b.disabled=false);field.disabled=false;field.value='';field.focus();}}
+      };
+      dialog.showModal();dialog.querySelector('input').focus();
+    });}
+    async function verifyPunchIdentity(){const name=$('#employee').value,registration=readDeviceRegistration();if(registration?.name===name)return true;if(!data.pinConfiguredNames.includes(name)){$('#notice').textContent=name+'さんの個人PINが未設定です。「今月の勤怠記録」から数字3桁のPINを登録してください。';return false;}if(devicePinVerification)return devicePinVerification;devicePinVerification=showDevicePinRegistration(name);try{return await devicePinVerification;}finally{devicePinVerification=null;}}
     const showButtonMotion=()=>new Promise(resolve=>setTimeout(resolve,220));
     var supplementBusy=false;
     var startupReady=false;
@@ -503,7 +526,10 @@ const calendarLocalReady=calendarLocalMode?new Promise((resolve,reject)=>{const 
 const sharedCalendar=createSharedCalendar({
   getSites:()=>data.sites,
   getIdentity:()=>{const registered=readDeviceRegistration();return {name:registered?.name||$('#employee').value,deviceToken:registered?.deviceToken||''};},
-  request:async payload=>{if(!calendarLocalMode)return callShared(payload);await calendarLocalReady;calendarLocalRequest ||=createCalendarLocalRequest(name=>data.admins.includes(name));return calendarLocalRequest(payload);},
+  request:async payload=>{
+    if(calendarLocalMode){await calendarLocalReady;calendarLocalRequest ||=createCalendarLocalRequest(name=>data.admins.includes(name));return calendarLocalRequest(payload);}
+    return callShared(payload);
+  },
   localPreview:calendarLocalMode,
   isAdmin:name=>data.admins.includes(name),
   holidayName,

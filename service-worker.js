@@ -1,4 +1,4 @@
-const CACHE='rakuraku-kintai-shell-v127';
+const CACHE='rakuraku-kintai-shell-v130';
 const APP_FILES=['./','./index.html','./app-config.js','./shared-calendar.js','./shared-calendar.css','./calendar-local-store.js'];
 const OPTIONAL_FILES=['./integration/games-loader.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./fox-runner.png'];
 
