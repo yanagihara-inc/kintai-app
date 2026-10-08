@@ -3,10 +3,43 @@ window.createSharedCalendar=function(adapter){
   const dialog=document.createElement('dialog');
   dialog.className='shared-calendar-dialog';
   document.body.appendChild(dialog);
-  let month=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Tokyo'}).slice(0,7),events=[],loading=false,requestSerial=0;
+  let month=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Tokyo'}).slice(0,7),events=[],loading=false,requestSerial=0,showingSaved=false;
   const esc=s=>String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
   const identity=()=>adapter.getIdentity();
-  const editable=e=>e.owner===identity().name||adapter.isAdmin(identity().name);
+  const cacheKey='kintai-shared-calendar-cache-v1';
+  let calendarCache={};
+  try{calendarCache=JSON.parse(sessionStorage.getItem(cacheKey)||'{}')||{};}catch(_){}
+  async function readMonth(value){
+    const auth=identity(),key=auth.name+'|'+value,cached=calendarCache[key];
+    let result=await adapter.request({action:'calendarRead',month:value,knownRevision:cached?.revision||'',...auth});
+    if(!result.ok)return result;
+    if(result.notModified){
+      if(cached)return {ok:true,events:cached.events};
+      result=await adapter.request({action:'calendarRead',month:value,...auth});
+    }
+    if(result.ok&&result.revision){
+      calendarCache[key]={revision:result.revision,events:result.events||[]};
+      try{sessionStorage.setItem(cacheKey,JSON.stringify(calendarCache));}catch(_){}
+    }
+    return result;
+  }
+  async function readMonths(months){
+    const auth=identity(),knownRevisions={};
+    months.forEach(value=>knownRevisions[value]=calendarCache[auth.name+'|'+value]?.revision||'');
+    const result=await adapter.request({action:'calendarRead',month:months[1],months,knownRevisions,...auth});
+    if(!result.ok)throw Error(result.error||'予定を取得できません');
+    // 古いデプロイ、ローカル確認版にも対応。
+    if(!result.months)return Promise.all(months.map(readMonth));
+    return months.map(value=>{
+      const item=result.months[value],key=auth.name+'|'+value;
+      if(!item)throw Error('予定の応答を確認してください');
+      if(item.notModified){if(!calendarCache[key])throw Error('保存済み予定を確認してください');return {ok:true,events:calendarCache[key].events};}
+      calendarCache[key]={revision:item.revision,events:item.events||[]};
+      try{sessionStorage.setItem(cacheKey,JSON.stringify(calendarCache));}catch(_){}
+      return {ok:true,events:item.events||[]};
+    });
+  }
+  const editable=e=>!e.readOnly&&(e.owner===identity().name||adapter.isAdmin(identity().name));
   let selectedDate=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Tokyo'}),selectedSite='';
   const siteName=e=>e.title.split(/[：:]/)[0].trim();
   const shiftDate=(date,days)=>{const d=new Date(date+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
@@ -68,19 +101,23 @@ window.createSharedCalendar=function(adapter){
     const moveWeek=days=>{selectedDate=shiftDate(selectedDate,days);selectedSite='';if(selectedDate.slice(0,7)!==month){month=selectedDate.slice(0,7);refresh();}else draw();};
     const prev=dialog.querySelector('[data-week-prev]'),next=dialog.querySelector('[data-week-next]');if(prev)prev.onclick=()=>moveWeek(-7);if(next)next.onclick=()=>moveWeek(7);
     dialog.querySelectorAll('[data-edit]').forEach(button=>button.onclick=()=>edit(events.find(e=>e.id===button.dataset.edit)));
-    dialog.querySelector('[data-status]').textContent=loading?'予定を読み込み中…':'';
+    dialog.querySelector('[data-status]').textContent=loading?(showingSaved?'保存済みの予定を表示中・変更を確認しています…':'予定を読み込み中…'):'';
   }
   async function refresh(){
     if(selectedDate.slice(0,7)!==month)selectedDate=month+'-01';
-    selectedSite='';events=[];
+    selectedSite='';
+    const [year,mon]=month.split('-').map(Number),months=[-1,0,1].map(n=>new Date(Date.UTC(year,mon-1+n,1)).toISOString().slice(0,7));
+    const saved=months.map(value=>calendarCache[identity().name+'|'+value]);
+    showingSaved=saved.some(value=>Array.isArray(value?.events));
+    const merge=items=>Array.from(new Map(items.map(e=>[e.id,e])).values()).sort((a,b)=>a.startDate.localeCompare(b.startDate)||(a.startTime||'').localeCompare(b.startTime||''));
+    events=merge(saved.flatMap(value=>Array.isArray(value?.events)?value.events:[]));
     const serial=++requestSerial;loading=true;shell();
     try{
-      const [year,mon]=month.split('-').map(Number),months=[-1,0,1].map(n=>new Date(Date.UTC(year,mon-1+n,1)).toISOString().slice(0,7));
-      const results=await Promise.all(months.map(value=>adapter.request({action:'calendarRead',month:value,...identity()})));
+      const results=await readMonths(months);
       if(serial!==requestSerial||!dialog.open)return;
       const failed=results.find(r=>!r.ok);if(failed)throw Error(failed.error||'予定を取得できません');
-      events=Array.from(new Map(results.flatMap(r=>r.events||[]).map(e=>[e.id,e])).values()).sort((a,b)=>a.startDate.localeCompare(b.startDate)||(a.startTime||'').localeCompare(b.startTime||''));loading=false;shell();
-    }catch(error){if(serial===requestSerial&&dialog.open){loading=false;dialog.querySelector('[data-status]').textContent=error.message+'。月を選び直して再読み込みできます。';}}
+      events=merge(results.flatMap(r=>r.events||[]));loading=false;showingSaved=false;draw();
+    }catch(error){if(serial===requestSerial&&dialog.open){loading=false;draw();dialog.querySelector('[data-status]').textContent=(showingSaved?'保存済みの予定を表示しています。最新の変更は確認できませんでした。':'')+error.message+'。月を選び直して再読み込みできます。';}}
   }
   async function edit(event=null,date=month+'-01'){
     if(event&&!editable(event))return;
