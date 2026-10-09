@@ -18,7 +18,7 @@
 <main>  <section id="gamesDialog">
 <div class="modal">
 <h2>暇つぶし</h2>
-<section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h3>型枠パズル</h3><p>スマホの傾きで材料を動かし、横一列の型枠を完成させよう。</p><div class="game-actions"><a href="./formwork-puzzle.html" style="display:inline-block;background:#357bad;color:white;padding:12px 24px;border-radius:9px;text-decoration:none">遊ぶ</a></div></section>
+<section style="margin-top:12px;padding:16px;border:1px solid #d9e5df;border-radius:14px"><h3>型枠パズル</h3><p>スマホの傾きで材料を動かし、横一列の型枠を完成させよう。</p><div class="game-actions"><button class="primary" id="puzzleGameOpen">遊ぶ</button></div><div class="ranking-row"><button class="secondary" id="puzzleRankingOpen">ランキング</button></div></section>
 <p class="hint">遊びたいものを選んでください</p>
 <section style="padding:16px;border:1px solid #d9e5df;border-radius:14px">
 <h3>すうしきドロップ</h3>
@@ -93,9 +93,9 @@
 </script>
 <script src="game-adapter.js?v=latest-20261006">
 </script>
-<script src="math-ranking.js?v=flash-memory-20261007">
+<script src="math-ranking.js?v=puzzle-ranking-20261009">
 </script>
-<script src="game-leaders.js?v=flash-memory-20261007">
+<script src="game-leaders.js?v=puzzle-ranking-20261009">
 </script>
 <script>document.getElementById('gameExit').onclick=exitGameApp;</script>
 </html>
