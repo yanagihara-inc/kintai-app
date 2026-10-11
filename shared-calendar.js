@@ -42,6 +42,10 @@ window.createSharedCalendar=function(adapter){
   const editable=e=>!e.readOnly&&(e.owner===identity().name||adapter.isAdmin(identity().name));
   let selectedDate=new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Tokyo'}),selectedSite='';
   const siteName=e=>e.title.split(/[：:]/)[0].trim();
+  let siteFilter='';
+  const today=()=>new Date().toLocaleDateString('sv-SE',{timeZone:'Asia/Tokyo'});
+  const siteColor=site=>{let hash=0;for(const c of site)hash=(hash*31+c.charCodeAt(0))>>>0;return ['#2563eb','#b45309','#7c3aed','#047857','#be185d','#0e7490','#c2410c'][hash%7];};
+  const currentEvent=e=>e.startDate<=today()&&e.endDate>=today();
   const shiftDate=(date,days)=>{const d=new Date(date+'T00:00:00Z');d.setUTCDate(d.getUTCDate()+days);return d.toISOString().slice(0,10);};
   const displayDate=date=>Number(date.slice(5,7))+'月'+Number(date.slice(8))+'日（'+['日','月','火','水','木','金','土'][new Date(date+'T00:00:00Z').getUTCDay()]+'）';
   const eventCard=e=>'<article class="calendar-detail-card"><div class="calendar-detail-date">'+displayDate(e.startDate)+(e.endDate!==e.startDate?'<span class="calendar-date-separator">～</span>'+displayDate(e.endDate):'')+'</div><h4>'+esc(e.title.includes('：')?e.title.split('：').slice(1).join('：'):e.title)+'</h4><span class="calendar-time-badge">'+(e.startTime?esc(e.startTime)+' ～ '+esc(e.endTime):'終日')+'</span>'+(e.note?'<details class="calendar-detail-note"><summary>備考を見る</summary><p>'+esc(e.note)+'</p></details>':'')+'<div class="calendar-detail-footer"><small>登録者：'+esc(e.owner)+'</small>'+(editable(e)?'<button class="secondary" data-edit="'+esc(e.id)+'">変更・削除</button>':'')+'</div></article>';
@@ -64,6 +68,12 @@ window.createSharedCalendar=function(adapter){
     draw();
   }
   function draw(){
+    let filter=dialog.querySelector('[data-site-filter]');
+    if(!filter){dialog.querySelector('[data-grid]').insertAdjacentHTML('beforebegin','<label class="field calendar-filter">現場で絞り込み<select data-site-filter aria-label="現場で絞り込み"></select></label>');filter=dialog.querySelector('[data-site-filter]');}
+    const sites=[...new Set(events.map(siteName))].sort((a,b)=>a.localeCompare(b,'ja'));
+    filter.innerHTML='<option value="">すべての現場</option>'+sites.map(site=>'<option value="'+esc(site)+'">'+esc(site)+'</option>').join('');
+    filter.value=siteFilter;filter.onchange=()=>{siteFilter=filter.value;selectedSite='';draw();};
+    const visibleEvents=events.filter(e=>!siteFilter||siteName(e)===siteFilter);
     const [y,m]=month.split('-').map(Number),count=new Date(Date.UTC(y,m,0)).getUTCDate(),offset=new Date(Date.UTC(y,m-1,1)).getUTCDay();
     const monthLabel=dialog.querySelector('[data-month-label]');
     monthLabel.innerHTML='<button type="button" data-year-next aria-label="翌年へ"><span class="calendar-year-triangle up" aria-hidden="true"></span></button><span>'+y+'年'+m+'月</span><button type="button" data-year-prev aria-label="前年へ"><span class="calendar-year-triangle down" aria-hidden="true"></span></button>';
@@ -74,9 +84,12 @@ window.createSharedCalendar=function(adapter){
     const weekday=new Date(selectedDate+'T00:00:00Z').getUTCDay(),weekStart=shiftDate(selectedDate,-weekday),visibleWeekEnd=shiftDate(weekStart,6);
     let grid=['日','月','火','水','木','金','土'].map(day=>'<b>'+day+'</b>').join('')+'<span></span>'.repeat(offset);
     for(let day=1;day<=count;day++){
-      const date=month+'-'+String(day).padStart(2,'0'),items=events.filter(e=>e.startDate<=date&&e.endDate>=date),holiday=adapter.holidayName?.(date)||'';
+      const date=month+'-'+String(day).padStart(2,'0'),items=visibleEvents.filter(e=>e.startDate<=date&&e.endDate>=date),holiday=adapter.holidayName?.(date)||'';
       const activeWeek=!selectedSite&&date>=weekStart&&date<=visibleWeekEnd;
-      grid+='<button aria-label="'+date+(holiday?' '+esc(holiday):'')+' 予定'+items.length+'件'+(activeWeek?' 表示中の週':'')+'" class="calendar-day'+(items.length?' calendar-has-events':' calendar-no-events')+(holiday?' calendar-holiday':'')+(activeWeek?' calendar-active-week':'')+(date===selectedDate?' calendar-selected':'')+'" data-date="'+date+'"><strong>'+day+'</strong></button>';
+      const daySites=[...new Set(items.map(siteName))],colors=daySites.map(siteColor);
+      const bands=daySites.length?'<span class="calendar-day-colors" aria-hidden="true">'+daySites.map((site,i)=>'<span title="'+esc(site)+'" style="background:'+colors[i]+'"></span>').join('')+'</span>':'';
+      const numberStyle='';
+      grid+='<button aria-label="'+date+(holiday?' '+esc(holiday):'')+' 予定'+items.length+'件'+(daySites.length?' 現場：'+esc(daySites.join('、')):'')+(activeWeek?' 表示中の週':'')+'" class="calendar-day'+(items.length?' calendar-has-events':' calendar-no-events')+(holiday?' calendar-holiday':'')+(activeWeek?' calendar-active-week':'')+(date===selectedDate?' calendar-selected':'')+'" data-date="'+date+'"><strong'+numberStyle+'>'+day+'</strong>'+bands+'</button>';
     }
     dialog.querySelector('[data-grid]').innerHTML='<div class="calendar-grid">'+grid+'</div>';
     dialog.querySelectorAll('[data-date]').forEach(button=>button.onclick=()=>{
@@ -86,25 +99,36 @@ window.createSharedCalendar=function(adapter){
     });
     let list='<div class="calendar-week-nav"><button data-week-prev>◀ 前週</button><h3>週間予定</h3><button data-week-next>翌週 ▶</button></div><p class="hint">大きい太字の日付は予定あり、小さい日付は予定なし。日付を押すとその週を表示します。</p>';
     if(selectedSite){
-      const matching=events.filter(e=>siteName(e)===selectedSite&&e.startDate<=month+'-31'&&e.endDate>=month+'-01');
+      const matching=visibleEvents.filter(e=>siteName(e)===selectedSite&&e.startDate<=month+'-31'&&e.endDate>=month+'-01');
       list='<div class="calendar-detail-header"><button class="secondary" data-back-week>← 週間予定に戻る</button><h3>'+esc(selectedSite)+'</h3><p>'+Number(month.slice(0,4))+'年'+Number(month.slice(5))+'月の予定 <span>'+matching.length+'件</span></p></div>'+matching.map(eventCard).join('');
     }else{
       const weekEnd=shiftDate(weekStart,6),groups=new Map();
       const label=date=>Number(date.slice(5,7))+'/'+Number(date.slice(8))+'（'+['日','月','火','水','木','金','土'][new Date(date+'T00:00:00Z').getUTCDay()]+'）';
       list+='<p class="calendar-week-range">'+label(weekStart)+' ～ '+label(weekEnd)+'</p>';
-      events.filter(e=>e.startDate<=weekEnd&&e.endDate>=weekStart).forEach(e=>{const site=siteName(e);if(!groups.has(site))groups.set(site,[]);groups.get(site).push(e);});
+      visibleEvents.filter(e=>e.startDate<=weekEnd&&e.endDate>=weekStart).forEach(e=>{const site=siteName(e);if(!groups.has(site))groups.set(site,[]);groups.get(site).push(e);});
       if(!groups.size)list+='<p class="hint">この週の予定はありません。</p>';
       groups.forEach((items,site)=>{
         list+='<section class="calendar-site-week"><button class="calendar-site" data-site="'+esc(site)+'">'+esc(site)+' ›</button><div class="calendar-week-items">';
         items.forEach(e=>{
           const start=e.startDate<weekStart?weekStart:e.startDate,end=e.endDate>weekEnd?weekEnd:e.endDate;
           const work=e.title.includes('：')?e.title.split('：').slice(1).join('：'):e.title;
-          list+='<div class="calendar-week-item"><div class="calendar-week-dates">'+label(start)+(start!==end?' ～ '+label(end):'')+'</div><strong>'+esc(work)+'</strong>'+(e.startTime?'<small>'+esc(e.startTime)+' ～ '+esc(e.endTime)+'</small>':'')+(editable(e)?'<button class="secondary" data-edit="'+esc(e.id)+'">変更・削除</button>':'')+'</div>';
+          list+='<div class="calendar-week-item" data-event="'+esc(e.id)+'"><div class="calendar-week-dates">'+label(start)+(start!==end?' ～ '+label(end):'')+'</div><strong>'+esc(work)+'</strong>'+(e.startTime?'<small>'+esc(e.startTime)+' ～ '+esc(e.endTime)+'</small>':'')+(editable(e)?'<button class="secondary" data-edit="'+esc(e.id)+'">変更・削除</button>':'')+'</div>';
         });
         list+='</div></section>';
       });
     }
     dialog.querySelector('[data-events]').innerHTML=list;
+    dialog.querySelectorAll('.calendar-site-week').forEach(section=>{section.style.setProperty('--site-color',siteColor(section.querySelector('[data-site]').dataset.site));});
+    const shown=selectedSite?visibleEvents.filter(e=>siteName(e)===selectedSite&&e.startDate<=month+'-31'&&e.endDate>=month+'-01'):null;
+    dialog.querySelectorAll('.calendar-detail-card,.calendar-week-item').forEach((card,index)=>{
+      const editButton=card.querySelector('[data-edit]'),event=card.dataset.event?events.find(e=>e.id===card.dataset.event):editButton?events.find(e=>e.id===editButton.dataset.edit):shown?.[index];
+      if(!event)return;
+      card.style.setProperty('--site-color',siteColor(siteName(event)));
+      if(currentEvent(event)){card.classList.add('calendar-today-event');card.insertAdjacentHTML('afterbegin','<span class="calendar-today-label">今日の予定</span>');}
+      card.insertAdjacentHTML('beforeend','<button type="button" class="secondary" data-copy="'+esc(event.id)+'">複製</button>');
+    });
+    dialog.querySelectorAll('[data-copy]').forEach(button=>button.onclick=()=>edit(null,today(),events.find(e=>e.id===button.dataset.copy)));
+    dialog.querySelector('[data-date="'+today()+'"]')?.classList.add('calendar-today');
     dialog.querySelectorAll('[data-site]').forEach(button=>button.onclick=()=>{selectedSite=button.dataset.site;draw();});
     const back=dialog.querySelector('[data-back-week]');if(back)back.onclick=()=>{selectedSite='';draw();};
     const moveWeek=days=>{selectedDate=shiftDate(selectedDate,days);selectedSite='';if(selectedDate.slice(0,7)!==month){month=selectedDate.slice(0,7);refresh();}else draw();};
@@ -130,7 +154,7 @@ window.createSharedCalendar=function(adapter){
       events=merge(results.flatMap(r=>r.events||[]));loading=false;showingSaved=false;draw();
     }catch(error){if(serial===requestSerial&&dialog.open){loading=false;draw();dialog.querySelector('[data-status]').textContent=(showingSaved?'保存済みの予定を表示しています。最新の変更は確認できませんでした。':'')+error.message+'。月を選び直して再読み込みできます。';}}
   }
-  async function edit(event=null,date=selectedDate){
+  async function edit(event=null,date=selectedDate,copy=null){
     if(event&&!editable(event))return;
     const serial=++requestSerial;
     let sites;
@@ -139,7 +163,8 @@ window.createSharedCalendar=function(adapter){
     else try{sites=await adapter.getSites();}catch(error){if(serial===requestSerial&&dialog.open)dialog.querySelector('[data-status]').textContent='現場名を読み込めません：'+error.message;return;}
     if(serial!==requestSerial||!dialog.open)return;
     sites=[...new Set((sites||[]).filter(s=>typeof s==='string'&&s.trim()))];
-    const e=event||{title:'',startDate:date,endDate:date,startTime:'',endTime:'',note:''};
+    if(copy&&!sites.includes(siteName(copy)))sites.push(siteName(copy));
+    const e=event||(copy?{...copy,startDate:date,endDate:shiftDate(date,Math.round((Date.parse(copy.endDate)-Date.parse(copy.startDate))/86400000))}:{title:'',startDate:date,endDate:date,startTime:'',endTime:'',note:''});
     // 一覧のスクロール・フォーカスを持ち越さず、編集画面を開き直す。
     dialog.close();
     dialog.remove();
@@ -153,7 +178,7 @@ window.createSharedCalendar=function(adapter){
     const oldSite=event&&currentSite&&!sites.includes(currentSite)?'<option selected value="'+esc(currentSite)+'">'+esc(currentSite)+'（既存予定・登録外）</option>':'';
     titleInput.closest('label').insertAdjacentHTML('beforebegin','<label class="field">現場名<select name="site" required>'+options(sites,currentSite)+oldSite+'</select></label>'+(!sites.length?'<p class="hint">有効な現場がありません。勤怠アプリで現場を登録してください。</p>':''));
     const works=['建込','コン打ち','解体','運搬'],aliases={'建込み':'建込','コンクリート打設':'コン打ち','バラシ':'解体'},work=aliases[currentWork]||currentWork;
-    titleInput.outerHTML='<select name="title" required>'+options(works,work)+(event&&work&&!works.includes(work)?'<option selected value="'+esc(work)+'">'+esc(work)+'（既存予定）</option>':'')+'</select>';
+    titleInput.outerHTML='<select name="title" required>'+options(works,work)+((event||copy)&&work&&!works.includes(work)?'<option selected value="'+esc(work)+'">'+esc(work)+'（既存予定）</option>':'')+'</select>';
     const startDateInput=dialog.querySelector('[name="startDate"]'),endDateInput=dialog.querySelector('[name="endDate"]');
     const datePanel=document.createElement('section');datePanel.className='calendar-date-picker';datePanel.hidden=true;
     endDateInput.closest('label').after(datePanel);

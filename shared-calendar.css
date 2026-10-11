@@ -12,5 +12,16 @@
 .shared-calendar-dialog.calendar-edit-dialog{position:fixed;top:4vh;top:4dvh;bottom:auto;margin-top:0;margin-bottom:0;max-height:88vh;max-height:88dvh}.calendar-week-nav{scroll-margin-top:12px}
 .calendar-main-actions{display:flex;gap:10px;align-items:stretch;margin:12px 0}.calendar-main-actions [data-today]{flex:1}.calendar-main-actions [data-add]{flex:2}
 .calendar-add-bottom{width:100%;margin-top:12px}
+.calendar-site-week,.calendar-detail-card{border-left:5px solid var(--site-color,#2563eb)}
+.calendar-site-week .calendar-site{color:var(--site-color,#2563eb)}
+.calendar-detail-card,.calendar-week-item{position:relative}
+.shared-calendar-dialog .calendar-today{outline:2px solid #d97706;outline-offset:-3px}
+.calendar-today-event{background:#fff7df!important;box-shadow:inset 0 0 0 2px #e4a52a}
+.calendar-today-label{display:block;color:#92400e;font-weight:800;font-size:12px;margin-bottom:5px}
+.calendar-filter{margin:12px 0}.calendar-filter select{width:100%}
+.shared-calendar-dialog .calendar-day{flex-direction:column;height:auto;min-height:42px;gap:3px}
+.calendar-day-colors{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;width:100%;padding:0 2px;box-sizing:border-box}
+.calendar-day-colors>span{display:block;flex:1 1 6px;min-width:6px;height:5px;border-radius:2px}
+.calendar-week-item [data-copy],.calendar-detail-card [data-copy]{margin-top:8px;font-size:12px;padding:6px 12px}
 .calendar-year-label{display:flex;flex-direction:column;align-items:center;gap:2px;white-space:nowrap}.calendar-month-nav .calendar-year-label button{display:flex;align-items:center;justify-content:center;width:100%;min-height:28px;padding:4px 0;background:transparent;color:#174d79}.calendar-year-triangle{display:block;width:100%;height:5px;background:#174d79}.calendar-year-triangle.up{clip-path:polygon(50% 0,100% 100%,0 100%)}.calendar-year-triangle.down{clip-path:polygon(0 0,100% 0,50% 100%)}
 .shared-calendar-dialog .calendar-active-week{border-top:3px solid #3984bd;border-bottom:3px solid #3984bd;border-radius:0}.shared-calendar-dialog .calendar-active-week.calendar-holiday{border-top-color:#3984bd;border-bottom-color:#3984bd}
