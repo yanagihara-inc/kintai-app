@@ -1,5 +1,5 @@
 (()=>{
- const units={balloon:'点',puzzle:'列',memory:'回',math:'問',math30:'点',mole:'回',drop:'個',maze:'本',mazeFast:'本',order:'個',color:'問',chest:'回',flash:'問',runner:'m',runnerFast:'m'};
+ const units={balloonFast:'点',balloon:'点',puzzle:'列',memory:'回',math:'問',math30:'点',mole:'回',drop:'個',maze:'本',mazeFast:'本',order:'個',color:'問',chest:'回',flash:'問',runner:'m',runnerFast:'m'};
  function show(id,rows){const el=document.getElementById(id+'Leader');if(!el)return;const leaders=rows.filter(r=>r.rank===1&&r.score!==null);el.textContent=leaders.length?'🏆 1位 '+leaders.map(r=>r.name).join('・')+' '+leaders[0].score+units[id]:'1位：まだ記録がありません';}
  for(const id of Object.keys(units)){const button=document.getElementById(id==='math'?'mathRankingOpen':id+'RankingOpen');if(!button)continue;const el=document.createElement('span');el.id=id+'Leader';el.className='game-leader';el.setAttribute('role','status');el.textContent='1位：読み込み中…';button.after(el);}
  window.addEventListener('game-ranking-updated',e=>show(e.detail.gameId,e.detail.rows));
