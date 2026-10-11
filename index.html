@@ -217,7 +217,30 @@
     const $=s=>document.querySelector(s), esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'), jpDate=d=>new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(d), keyDate=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo'}).format(d);
     function save(){}
     function saveConfig(){const keys=['employees','sites','holidays','pinConfiguredNames','companyName','admins','closingDay','overtimeStart'],settings={};keys.forEach(key=>settings[key]=data[key]);localStorage.setItem(CONFIG_KEY,JSON.stringify({version:configVersion,data:settings}));}
-    function callShared(payload){return new Promise(resolve=>{if(!API)return resolve({ok:true});payload={...payload};if(adminPin)payload.adminName=$('#employee').value;const callback='kintaiWrite_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');window[callback]=result=>{delete window[callback];script.remove();resolve(result);};script.src=`${API}?payload=${encodeURIComponent(JSON.stringify(payload))}&callback=${callback}`;script.onerror=()=>{delete window[callback];script.remove();resolve({ok:false,error:'通信を確認してください',networkError:true});};document.head.appendChild(script);});}
+    async function callShared(payload){
+      const readOnly=['calendarRead','personalCorrectionResults','correctionNotice','correctionReviewList'].includes(payload.action);
+      for(let attempt=0;attempt<(readOnly?2:1);attempt++){
+        const result=await sharedRequestOnce(payload);
+        if(!result.networkError||!readOnly||attempt===1)return result;
+        await new Promise(resolve=>setTimeout(resolve,1000));
+      }
+    }
+    function sharedRequestOnce(payload){return new Promise(resolve=>{
+      if(!API)return resolve({ok:true});
+      payload={...payload};if(adminPin)payload.adminName=$('#employee').value;
+      const callback='kintaiWrite_'+Date.now()+'_'+Math.random().toString(36).slice(2),script=document.createElement('script');
+      let settled=false,timer;
+      const finish=result=>{
+        if(settled)return;settled=true;clearTimeout(timer);script.remove();
+        // 遅れて到着したJSONPがエラーを起こさないよう一時的に受け流す。
+        window[callback]=()=>{};setTimeout(()=>{delete window[callback];},60000);resolve(result);
+      };
+      window[callback]=finish;
+      script.src=`${API}?payload=${encodeURIComponent(JSON.stringify(payload))}&callback=${callback}`;
+      script.onerror=()=>finish({ok:false,error:'通信を確認してください',networkError:true});
+      timer=setTimeout(()=>finish({ok:false,error:'Googleの応答が遅れています。保存結果を確認してください',networkError:true}),25000);
+      document.head.appendChild(script);
+    });}
     function readPendingQueue(){try{const value=JSON.parse(localStorage.getItem(PENDING_QUEUE_KEY)||'[]');return Array.isArray(value)?value:[];}catch(_){return [];}}
     function writePendingQueue(queue){localStorage.setItem(PENDING_QUEUE_KEY,JSON.stringify(queue));}
     function queueShared(payload){const queue=readPendingQueue(),key=`${payload.action}|${payload.name||''}|${payload.date||''}|${payload.type||''}|${payload.at||''}`,existing=queue.find(item=>item.key===key);if(existing){existing.payload=payload;existing.queuedAt=Date.now();}else queue.push({key,payload,queuedAt:Date.now()});writePendingQueue(queue);}
@@ -233,7 +256,7 @@ function loadShared(attempt=0,startedAt=Date.now(),generation=++startupLoadGener
   const registration=readDeviceRegistration(),callback='kintaiData_'+Date.now()+'_'+generation+'_'+attempt;
   const script=document.createElement('script');
   let timer,slowTimer,settled=false;
-  const cleanup=()=>{settled=true;clearTimeout(timer);clearTimeout(slowTimer);delete window[callback];script.remove();};
+  const cleanup=(late=false)=>{settled=true;clearTimeout(timer);clearTimeout(slowTimer);if(late){window[callback]=()=>{};setTimeout(()=>{delete window[callback];},60000);}else delete window[callback];script.remove();};
   window[callback]=payload=>{
     if(settled)return;
     cleanup();
@@ -254,7 +277,7 @@ function loadShared(attempt=0,startedAt=Date.now(),generation=++startupLoadGener
   },Math.max(0,10000-(Date.now()-startedAt)));
   timer=setTimeout(()=>{
     if(settled)return;
-    cleanup();
+    cleanup(true);
     if(generation===startupLoadGeneration)setLoading(true,'Googleからの応答が遅れています\n少し時間をおいて再読み込みしてください',true);
   },remaining);
   document.head.appendChild(script);
@@ -478,7 +501,7 @@ function playAnimalForType(type,previewLarge=null){const supplementButtons={夜�
     function earlyLeaveMinutesClient(type,at,date){if(!['退勤','直帰'].includes(type))return 0;const limit=new Date(`${date}T17:00:00+09:00`).getTime();return at<limit?Math.max(0,Math.round((limit-at)/60000)):0;}
     function weekdayLabel(date){return new Intl.DateTimeFormat('ja-JP',{weekday:'short',timeZone:'Asia/Tokyo'}).format(new Date(`${date}T00:00:00+09:00`));}
     function attendanceCreditClient(at){const hour=Number(new Intl.DateTimeFormat('en-US',{hour:'numeric',hour12:false,timeZone:'Asia/Tokyo'}).format(new Date(at)))%24;return hour>=12?0.5:1;}
-    function attendanceCreditForDayClient(records){const rows=[...records].sort((a,b)=>a.at-b.at),start=rows.find(record=>['出勤','直行'].includes(record.type)),end=start&&rows.find(record=>record.at>start.at&&['退勤','直帰'].includes(record.type));if(!start)return 0;const parts=at=>new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Tokyo'}).format(new Date(at)).split(':').map(Number),[startHour]=parts(start.at),[endHour,endMinute]=end?parts(end.at):[24,0];return startHour>=12||(endHour*60+endMinute)<12*60?0.5:1;}
+    function attendanceCreditForDayClient(records){const rows=[...records].sort((a,b)=>a.at-b.at),start=rows.find(record=>['出勤','直行'].includes(record.type)),end=start&&rows.find(record=>record.at>start.at&&['退勤','直帰'].includes(record.type));if(!start)return 0;const parts=at=>new Intl.DateTimeFormat('en-GB',{hour:'2-digit',minute:'2-digit',hour12:false,timeZone:'Asia/Tokyo'}).format(new Date(at)).split(':').map(Number),[startHour]=parts(start.at),[endHour,endMinute]=end?parts(end.at):[24,0];return startHour>=12||(endHour*60+endMinute)<12*60||(end&&end.at-start.at<4*60*60*1000)?0.5:1;}
     function dateKeysClient(start,end){const values=[],cursor=new Date(`${start}T00:00:00+09:00`),last=new Date(`${end}T00:00:00+09:00`);while(cursor<=last){values.push(keyDate(cursor));cursor.setTime(cursor.getTime()+86400000);}return values;}
     function periodSummary(month){const period=closingPeriod(month),dates=[...new Set(data.records.filter(r=>r.date>=period.start&&r.date<=period.end).map(r=>r.date))],targetDates=dateKeysClient(period.start,period.end).filter(date=>date<keyDate(new Date())&&!holidayName(date));return {period,rows:data.employees.map(name=>{const days=dates.map(date=>dailyAttendance(name,date)).filter(Boolean),worked=new Set(days.map(day=>day.date)),regular=days.filter(day=>!day.holiday).reduce((sum,day)=>sum+day.attendance,0),holiday=days.filter(day=>day.holiday).reduce((sum,day)=>sum+day.attendance,0),absence=targetDates.filter(date=>!worked.has(date)).length;return {name,regular,holiday,absence,work:days.reduce((total,day)=>total+day.work,0),overtime:days.reduce((total,day)=>total+day.overtime,0),early:days.reduce((total,day)=>total+day.early,0)};})};}
     function renderReport(){const month=$('#month').value,summary=periodSummary(month);$('#report').innerHTML=`<p class="hint">集計期間：${summary.period.start} 〜 ${summary.period.end}<br>残業開始：${data.overtimeStart||'18:00'}</p><table class="report"><thead><tr><th>氏名</th><th>通常</th><th>休日</th><th>欠勤</th><th>勤務時間</th><th>残業</th><th>早退</th></tr></thead><tbody>${summary.rows.map(row=>`<tr><td>${esc(row.name)}</td><td>${row.regular}日</td><td>${row.holiday}日</td><td>${row.absence}日</td><td>${minutesLabel(row.work)}</td><td>${minutesLabel(row.overtime)}</td><td>${minutesLabel(row.early)}</td></tr>`).join('')}</tbody></table>`;const records=data.records.filter(r=>r.date>=summary.period.start&&r.date<=summary.period.end);$('#adminRecords').innerHTML=records.length?[...records].sort((a,b)=>b.at-a.at).map(r=>`<div class="row"><div><b>${esc(r.name)}</b> <span class="tag ${['退勤','直帰'].includes(r.type)?'end':''}">${r.type}</span><div class="hint">${r.date}（${weekdayLabel(r.date)}）${holidayName(r.date)?`・${holidayName(r.date)}`:''}${r.earlyLeaveMinutes?`・早退 ${minutesLabel(r.earlyLeaveMinutes)}`:''}</div></div><div class="time">${new Date(r.at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</div></div>`).join(''):'<div class="empty">この期間の記録はありません</div>';}
@@ -501,6 +524,10 @@ $('#personalOpen').addEventListener('click',()=>{const dialog=$('#personalDialog
       if(earlyRow)earlyRow.querySelector('td').textContent=minutesLabel(fullDayEarly);
       const historyRows=[...document.querySelectorAll('#personalResult .history .row')];
       historyRows.forEach(row=>{const hint=row.querySelector('.hint'),date=hint?.textContent.match(/^\d{4}-\d{2}-\d{2}/)?.[0],type=row.querySelector('.tag')?.textContent;if(date&&halfDayDates.has(date))hint.innerHTML=hint.innerHTML.replace(/・早退 [^・<]+/,'');if(['退勤','直帰'].includes(type))hint.innerHTML=hint.innerHTML.replace(/・休日出勤（[^）]+）/,'');});
+      halfDayDates.forEach(date=>{
+        const end=records.filter(record=>record.date===date&&['退勤','直帰'].includes(record.type)).sort((a,b)=>a.at-b.at)[0];
+        if(end&&end.at>=new Date(date+'T12:00:00+09:00').getTime())historyRows.filter(row=>row.querySelector('.hint')?.textContent.startsWith(date)).forEach(row=>{const hint=row.querySelector('.hint');hint.innerHTML=hint.innerHTML.replace('午前退勤 0.5日','4時間未満・半日 0.5日');});
+      });
       halfDayDates.forEach(date=>{const sameDateRows=historyRows.filter(row=>row.querySelector('.hint')?.textContent.startsWith(date)),startRow=sameDateRows.find(row=>['出勤','直行'].includes(row.querySelector('.tag')?.textContent)),endRow=sameDateRows.find(row=>['退勤','直帰'].includes(row.querySelector('.tag')?.textContent)),startHint=startRow?.querySelector('.hint'),endHint=endRow?.querySelector('.hint');if(startHint?.textContent.includes('午前退勤 0.5日')&&endHint){startHint.innerHTML=startHint.innerHTML.replace('・午前退勤 0.5日','');endHint.innerHTML+='・午前退勤 0.5日';}});
       if(regularRow)regularRow.querySelector('td').textContent+=`（半日${regularHalfDays}回含む）`;
       if(holidayRow){holidayRow.querySelector('td').textContent+=`（半日${holidayHalfDays}回含む）`;holidayRow.insertAdjacentHTML('afterend',`<tr><th>夜勤回数</th><td>${nightCount}回</td></tr><tr><th>出張回数</th><td>${tripCount}回</td></tr>`);}
