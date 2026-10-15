@@ -72,10 +72,12 @@ function onOpen() {
     .addItem('まとめ編集を各シートから再読込', 'showRefreshSummaryEditProgress')
     .addItem('まとめ編集を各シートへ反映', 'showApplySummaryEditProgress')
     .addItem('月別集計を更新', 'showMonthlySummaryProgress')
+    .addItem('月別集計をA4横向きで印刷（PDF）', 'printMonthlySummary')
     .addItem('年間現場別人工を更新', 'showYearlySiteLaborProgress')
     .addItem('打刻漏れを更新', 'showMissingPunchProgress')
     .addItem('一括修正シートを更新', 'showBulkEditRefreshProgress')
     .addItem('一括修正を反映', 'showBulkEditApplyProgress')
+    .addItem('入力欄のプルダウンを設定・更新', 'configureInputDropdowns')
     .addItem('休暇・遅刻を登録', 'registerLeaveFromMenu')
     .addItem('現場移動時間を登録', 'registerSiteMoveFromMenu')
     .addItem('対象月を締める', 'closeMonthFromMenu')
@@ -185,7 +187,7 @@ function refreshMonthlySummarySheet_() {
         }
       });
       const workedDateSet={};dates.forEach(date=>workedDateSet[date]=true);
-      const attendanceTargetDates=dateKeys_(period.start,period.end).filter(date=>date<=today&&!holidaySet[date]&&isMemberEmploymentDate_(member,date));
+      const attendanceTargetDates=dateKeys_(period.start,period.end).filter(date=>date<today&&!holidaySet[date]&&isMemberEmploymentDate_(member,date));
       const absenceDays=attendanceTargetDates.reduce((total,date)=>{if(workedDateSet[date])return total;const leave=leaveRows.find(row=>String(row[1])===name&&formatDate_(row[2])===date),type=leave?String(leave[3]):'';return total+(type==='有給'?0:['午前半休','午後半休'].includes(type)?0.5:1);},0);
       const nightCount=personRecords.filter(record=>record.type==='夜勤').length;
       const tripCount=personRecords.filter(record=>record.type==='出張').length;
@@ -195,47 +197,108 @@ function refreshMonthlySummarySheet_() {
 
   sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns()).breakApart();
   sheet.clear();
+  // セルのメモがPDF末尾の別ページとして出力されるのを防ぐ。
+  sheet.getRange(1,1,sheet.getMaxRows(),sheet.getMaxColumns()).clearNote();
   const requiredRows = 5 + rowsByMonth.reduce((total, rows) => total + rows.length + 3, 0);
   if (sheet.getMaxRows() < requiredRows) sheet.insertRowsAfter(sheet.getMaxRows(), requiredRows - sheet.getMaxRows());
   sheet.getRange('A1:M1').merge().setValue(`${settings.companyName}　月別勤怠集計（3か月）`).setBackground('#14532d').setFontColor('#ffffff').setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center');
   sheet.getRange('A2').setValue('対象月');
-  sheet.getRange('B2').setValue(month).setBackground('#fef9c3').setNote('最新の対象月をyyyy-mm形式で入力すると、その月と前2か月を再集計します');
+  sheet.getRange('B2').setValue(month).setBackground('#fef9c3');
   sheet.getRange('D2').setValue('表示対象');
   sheet.getRange('E2:M2').merge().setValue(months.join('・'));
   sheet.getRange('A3').setValue('残業開始');
   sheet.getRange('B3').setValue(settings.overtimeStart);
   sheet.getRange('D3').setValue('更新日時');
   sheet.getRange('E3:M3').merge().setValue(new Date()).setNumberFormat('yyyy-mm-dd hh:mm');
-  sheet.getRange('A4:M4').merge().setValue('印刷設定：A4／横向き／幅を1ページに合わせる／余白「狭い」').setBackground('#fef9c3').setFontColor('#854d0e').setFontSize(9).setHorizontalAlignment('center');
+  sheet.getRange('A4:M4').merge().setValue('日数は半日＝0.5日／時間は 時間:分　　印刷：勤怠管理 → 月別集計をA4横向きで印刷（PDF）').setBackground('#f1f5f9').setFontColor('#475569').setFontSize(9).setHorizontalAlignment('center');
   sheet.getRange(2, 1, 2, 13).setBackgrounds([
     ['#dcfce7','#fef9c3','#ffffff','#dcfce7','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff'],
     ['#dcfce7','#ffffff','#ffffff','#dcfce7','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff','#ffffff']
   ]);
+  // 少人数でも表が用紙の上半分だけにならないよう、行の高さを人数に合わせる。
+  const bodyRowHeight=Math.max(20,Math.min(36,Math.floor(410/Math.max(1,members.length*3))));
   let startRow=5;
   months.forEach((value,index) => {
     const period=periods[index], rows=rowsByMonth[index];
     sheet.getRange(startRow,1,1,13).merge().setValue(`${value}　集計期間：${period.start} ～ ${period.end}`).setBackground('#166534').setFontColor('#ffffff').setFontWeight('bold').setFontSize(10);
-    sheet.getRange(startRow+1,1,1,13).setValues([['氏名','通常出勤日数','休日出勤日数','夜勤回数','出張回数','欠勤日数','本人確認','通常勤務時間','休日勤務時間','合計勤務時間','残業時間','中抜け時間','早退時間']]).setBackground('#bbf7d0').setFontWeight('bold').setFontSize(8).setWrap(true);
+    sheet.getRange(startRow+1,1,1,13).setValues([['氏名','通常出勤\n（日）','休日出勤\n（日）','夜勤\n（回）','出張\n（回）','欠勤\n（日）','本人確認','通常勤務\n（時間）','休日勤務\n（時間）','合計勤務\n（時間）','残業\n（時間）','中抜け\n（時間）','早退\n（時間）']]).setBackground('#dcfce7').setFontWeight('bold').setFontSize(9).setWrap(true).setHorizontalAlignment('center');
     if (rows.length) {
-      sheet.getRange(startRow+2,1,rows.length,13).setValues(rows).setFontSize(8);
-      sheet.getRange(startRow+2,2,rows.length,5).setNumberFormat('0.0');
+      const body=sheet.getRange(startRow+2,1,rows.length,13);
+      body.setValues(rows).setFontSize(10).setBackgrounds(rows.map((row,i)=>Array(13).fill(i%2?'#f1f5f9':'#ffffff')));
+      sheet.getRange(startRow+2,1,rows.length,1).setHorizontalAlignment('left');
+      sheet.getRange(startRow+2,2,rows.length,12).setHorizontalAlignment('right');
+      sheet.getRange(startRow+2,7,rows.length,1).setHorizontalAlignment('center');
+      sheet.getRange(startRow+2,2,rows.length,5).setNumberFormat('0.#');
       sheet.getRange(startRow+2,8,rows.length,6).setNumberFormat('[h]:mm');
-      sheet.setRowHeights(startRow+2,rows.length,18);
+      sheet.setRowHeights(startRow+2,rows.length,bodyRowHeight);
     }
     sheet.setRowHeight(startRow,20);
-    sheet.setRowHeight(startRow+1,30);
+    sheet.setRowHeight(startRow+1,32);
+    sheet.setRowHeight(startRow+rows.length+2,6);
     startRow += rows.length + 3;
   });
-  [88,54,54,48,48,48,54,60,60,60,54,54,54].forEach((width,index) => sheet.setColumnWidth(index + 1, width));
+  [124,68,68,52,52,52,64,76,76,76,64,64,64].forEach((width,index) => sheet.setColumnWidth(index + 1, width));
+  sheet.getRange(1,1,startRow-2,13).setVerticalAlignment('middle');
+  sheet.setRowHeight(1,28);
+  sheet.setRowHeights(2,2,20);
+  sheet.setRowHeight(4,20);
   sheet.getRange(1,1,4,13).setFontSize(9);
   sheet.getRange('A1:M1').setFontSize(15);
   sheet.setFrozenRows(4);
   sheet.setHiddenGridlines(true);
+  // 印刷範囲は3か月分の集計の最終行まで。空白や範囲外の行は含めない。
+  book.setNamedRange('KINTAI_MONTHLY_PRINT',sheet.getRange(1,1,startRow-2,13));
+}
+
+// PDFだけに印刷設定を適用する。集計対象月・元データは変更しない。
+function printMonthlySummary() {
+  // 出力直前に作り直し、以前の印刷範囲や余分なページに依存しない。
+  refreshMonthlySummarySheet_();
+  const book=SpreadsheetApp.getActive(),sheet=book.getSheetByName(MONTHLY_SUMMARY_SHEET);
+  const printRange=book.getRangeByName('KINTAI_MONTHLY_PRINT');
+  if(!sheet||!printRange)throw new Error('月別集計の印刷範囲を作成できませんでした。');
+  SpreadsheetApp.flush();
+  const options={format:'pdf',size:'A4',portrait:'false',scale:'4',sheetnames:'false',printtitle:'false',pagenumbers:'false',gridlines:'false',fzr:'false',top_margin:'0.15',bottom_margin:'0.15',left_margin:'0.15',right_margin:'0.15',horizontal_alignment:'CENTER',vertical_alignment:'TOP',gid:sheet.getSheetId(),r1:0,c1:0,r2:printRange.getLastRow(),c2:13};
+  const url='https://docs.google.com/spreadsheets/d/'+book.getId()+'/export?'+Object.keys(options).map(key=>encodeURIComponent(key)+'='+encodeURIComponent(options[key])).join('&');
+  const html=HtmlService.createHtmlOutput('<p>3か月分をA4横向き・1ページに合わせて開きます。</p><p><a target="_blank" rel="noopener" onclick="setTimeout(function(){google.script.host.close();},150);" href="'+url.replace(/&/g,'&amp;')+'">印刷用PDFを開く</a></p><p>PDFを開いて印刷してください。</p>').setWidth(360).setHeight(160);
+  SpreadsheetApp.getUi().showModalDialog(html,'月別集計の印刷');
 }
 
 function shiftMonth_(month, amount) {
   const parts=String(month).split('-').map(Number), date=new Date(Date.UTC(parts[0],parts[1]-1+amount,1));
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth()+1).padStart(2,'0')}`;
+}
+
+/** 値を書き換えず、入力欄にだけ選択候補を付ける。 */
+function configureInputDropdowns() {
+  configureInputDropdowns_();
+  SpreadsheetApp.getActive().toast('入力欄のプルダウンを更新しました','勤怠管理',5);
+}
+
+function configureInputDropdowns_() {
+  const book=SpreadsheetApp.getActive();
+  const listRule=(values,strict=true)=>SpreadsheetApp.newDataValidation().requireValueInList(values.map(String),true).setAllowInvalid(!strict).build();
+  const apply=(name,column,start,rule)=>{const sheet=book.getSheetByName(name);if(sheet&&sheet.getMaxRows()>=start)sheet.getRange(start,column,sheet.getMaxRows()-start+1,1).setDataValidation(rule);};
+  const referenceRule=name=>{const source=book.getSheetByName(name);return source&&source.getMaxRows()>1?SpreadsheetApp.newDataValidation().requireValueInRange(source.getRange(2,1,source.getMaxRows()-1,1),true).setAllowInvalid(true).build():null;};
+  const members=referenceRule(MEMBER_SHEET),sites=referenceRule(SITE_SHEET);
+  if(members)[[RECORD_SHEET,2],[LEAVE_SHEET,2],[SITE_MOVE_SHEET,2]].forEach(([name,col])=>apply(name,col,2,members));
+  if(sites)apply(SITE_MOVE_SHEET,4,2,sites);
+  apply(RECORD_SHEET,4,2,listRule(TYPES));
+  apply(LEAVE_SHEET,4,2,listRule(['有給','午前半休','午後半休','遅刻']));
+  apply(BULK_EDIT_SHEET,8,5,listRule(TYPES));
+  const summary=book.getSheetByName(SUMMARY_EDIT_SHEET);
+  if(summary){
+    if(members)summary.getRange('B7').setDataValidation(members);
+    summary.getRange('B8').setDataValidation(listRule(Array.from({length:28},(_,i)=>i+1)));
+    summary.getRange('B9').setDataValidation(listRule(Array.from({length:48},(_,i)=>String(Math.floor(i/2)).padStart(2,'0')+':'+(i%2?'30':'00')),false));
+  }
+  const settings=book.getSheetByName(SETTINGS_SHEET);
+  if(settings)settings.getDataRange().getValues().slice(1).forEach((row,i)=>{
+    const cell=settings.getRange(i+2,2);
+    if(row[0]==='管理者'&&members)cell.setDataValidation(members);
+    if(row[0]==='締め日')cell.setDataValidation(listRule(Array.from({length:28},(_,n)=>n+1)));
+    if(row[0]==='残業開始時刻')cell.setDataValidation(listRule(Array.from({length:48},(_,n)=>String(Math.floor(n/2)).padStart(2,'0')+':'+(n%2?'30':'00')),false));
+  });
 }
 
 function outingMinutes_(events) {
@@ -279,7 +342,8 @@ function attendanceCreditForDay_(records) {
   if(!start)return 0;
   const startHour=Number(Utilities.formatDate(new Date(Number(start.at)),'Asia/Tokyo','H'));
   const endMinutes=end?Number(Utilities.formatDate(new Date(Number(end.at)),'Asia/Tokyo','H'))*60+Number(Utilities.formatDate(new Date(Number(end.at)),'Asia/Tokyo','m')):1440;
-  return startHour>=12||endMinutes<720?0.5:1;
+  const underFourAndHalfHours=end&&Number(end.at)-Number(start.at)<270*60*1000;
+  return startHour>=12||endMinutes<720||underFourAndHalfHours?0.5:1;
 }
 
 function dateKeys_(start,end) {
@@ -393,6 +457,7 @@ function refreshSummaryEditSheet_() {
   [140,180,25,170,70,100,110,110,25,180,70,25,110,170,70,130].forEach((width, index) => sheet.setColumnWidth(index + 1, width));
   sheet.setFrozenRows(5);
   sheet.setHiddenGridlines(true);
+  configureInputDropdowns_();
 }
 
 /** まとめ編集の黄色セルを、アプリが使用する各シートへ反映します。 */
@@ -471,6 +536,11 @@ function doGet(e) {
       const ok = isAdmin_(String(e.parameter.name || '')) && String(e.parameter.pin || '') === PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
       if(ok){const book=SpreadsheetApp.getActive();refreshMissingPunchSheet_();result={ok:true,data:{records:readRecords_(book),pinStatus:readPinStatus_(book),deviceStatus:readDeviceStatus_(book),correctionRequests:readCorrectionRequests_(book),missingPunches:ensureSheet_(book,MISSING_SHEET,['氏名','日付','内容','最終更新']).getDataRange().getValues().slice(1).filter(row=>row[0]).map(row=>({name:String(row[0]),date:formatDate_(row[1]),message:String(row[2])}))}};}else result={ok:false};
     }
+    else if(e.parameter.action==='personalBootstrap'){
+      const name=String(e.parameter.name||'');
+      if(!verifyDeviceToken_(SpreadsheetApp.getActive(),name,String(e.parameter.deviceToken||'')))throw new Error('本人端末の登録を確認できません');
+      result={ok:true,data:readAll_(String(e.parameter.configVersion||''),name)};
+    }
     else result = { ok: true, data: readAll_(String(e.parameter.configVersion || '')) };
   } catch (error) { result = { ok: false, error: error.message }; }
   const body = callback && /^[A-Za-z_$][\w$]*$/.test(callback)
@@ -487,12 +557,12 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
 }
 
-function readAll_(knownVersion) {
+function readAll_(knownVersion,personalName) {
   const book = SpreadsheetApp.getActive();
   const configVersion = getConfigVersion_();
   const today = Utilities.formatDate(new Date(), 'Asia/Tokyo', 'yyyy-MM-dd');
   const missingPunches=ensureSheet_(book,MISSING_SHEET,['氏名','日付','内容','最終更新']).getDataRange().getValues().slice(1).filter(row=>row[0]).map(row=>({name:String(row[0]),date:formatDate_(row[1]),message:String(row[2])}));
-  const result = { records: readRecordsForDate_(book,today), missingPunches, configVersion, configChanged: knownVersion !== configVersion };
+  const result = { records: readRecordsForDate_(book,today,personalName), missingPunches:personalName?missingPunches.filter(item=>item.name===personalName):missingPunches, configVersion, configChanged: knownVersion !== configVersion };
   if (!result.configChanged) return result;
   const memberRows = ensureSheet_(book, MEMBER_SHEET, ['氏名', '有効', '個人PINハッシュ']).getDataRange().getValues().slice(1)
     .filter(row => row[0] && row[1] !== false);
@@ -507,12 +577,54 @@ function readAll_(knownVersion) {
 }
 
 function mutate_(input) {
+  if(['calendarRead','calendarSave','calendarDelete'].includes(input.action))return calendarAction_(input);
+  if(['personalSupplementRecords','personalCorrectionRecords'].includes(input.action)){
+    const book=SpreadsheetApp.getActive(),name=String(input.name||'');
+    if(!verifyDeviceToken_(book,name,String(input.deviceToken||'')))throw new Error('本人端末の登録を確認できません');
+    const yesterday=Utilities.formatDate(new Date(Date.now()-86400000),'Asia/Tokyo','yyyy-MM-dd');
+    const previous=readRecordsForDate_(book,yesterday,name).filter(record=>['夜勤','出張'].includes(record.type));
+    const today=Utilities.formatDate(new Date(),'Asia/Tokyo','yyyy-MM-dd');
+    return {ok:true,records:input.action==='personalCorrectionRecords'?readRecordsForDate_(book,today,name).concat(previous):previous};
+  }
+  if(input.action==='personalCorrectionResults'){
+    const book=SpreadsheetApp.getActive(),name=String(input.name||'');
+    if(!verifyDeviceToken_(book,name,String(input.deviceToken||'')))throw new Error('本人端末を登録してください');
+    const sheet=ensureSheet_(book,CORRECTION_SHEET,['申請ID','氏名','対象記録ID','申請日時','修正前日付','修正前種別','修正前時刻','修正後日付','修正後種別','修正後時刻','状態','承認管理者','承認日時']);
+    const today=Utilities.formatDate(new Date(),'Asia/Tokyo','yyyy-MM-dd'),rows=sheet.getDataRange().getValues().slice(1).filter(row=>String(row[1])===name);
+    const approvedIds=rows.filter(row=>String(row[10])==='承認'&&row[12]&&formatDate_(row[12])===today).map(row=>String(row[0]));
+    const rejectedIds=rows.filter(row=>String(row[10])==='却下'&&row[12]&&formatDate_(row[12])===today).map(row=>String(row[0]));
+    const pendingIds=rows.filter(row=>String(row[10])==='申請中'&&formatDate_(row[3])===today).map(row=>String(row[0]));
+    const updatedRecordIds=[...new Set(rows.filter(row=>approvedIds.includes(String(row[0]))).map(row=>String(row[2])))];
+    const correctedRecords=updatedRecordIds.length?readRecords_(book).filter(record=>updatedRecordIds.includes(record.id)):[];
+    return {ok:true,date:today,approvedIds,rejectedIds,pendingIds,updatedRecordIds,correctedRecords};
+  }
+  if(input.action==='correctionNotice')return {ok:true,count:readCorrectionRequests_(SpreadsheetApp.getActive()).length};
   const lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     const book = SpreadsheetApp.getActive();
     const members = ensureSheet_(book, MEMBER_SHEET, ['氏名', '有効', '個人PINハッシュ']);
+
+    if (input.action === 'issueGameLaunch') {if(typeof issueGameLaunch_!=='function')throw new Error('GameIdentity.gsを追加してください');return issueGameLaunch_(book,members,input);}
+    if (['mathGameRanking','saveMathGameScore'].includes(input.action)) return {ok:false,error:'ランキングはゲーム専用サーバーへ移動しました'};
     const records = ensureSheet_(book, RECORD_SHEET, ['記録ID', '氏名', '日付', '打刻種別', '打刻日時', '削除済', '現場名', '戻り予定時刻', '早退時間（分）']);
-    if (['mathGameRanking','saveMathGameScore'].includes(input.action)) {if(typeof mathGameRanking_!=='function')return {ok:false,error:'ゲームランキングは解除されています'};return mathGameRanking_(book,members,input);}
+    if(['setSupplement','finalizeSupplement'].includes(input.action)){
+      const name=String(input.name||''),type=String(input.type||''),currentDay=Utilities.formatDate(new Date(),'Asia/Tokyo','yyyy-MM-dd'),today=String(input.date||''),finalizing=input.action==='finalizeSupplement';
+      if(!['夜勤','出張'].includes(type)||typeof input.active!=='boolean'||!/^\d{4}-\d{2}-\d{2}$/.test(today)||(finalizing?today>=currentDay:today!==currentDay))throw new Error('確定保存は日付が変わってから行います');
+      if(!verifyDeviceToken_(book,name,String(input.deviceToken||'')))throw new Error('本人端末を登録してください');
+      if(!members.getDataRange().getValues().slice(1).some(row=>String(row[0])===name&&row[1]!==false))throw new Error('有効なメンバーではありません');
+      if(isDateLocked_(book,today))throw new Error('月締め済みのため変更できません');
+      const receipt=finalizing?ensureSheet_(book,'出張夜勤確定',['確定キー','氏名','日付','種別','記録あり','保存日時']):null,receiptKey=name+'|'+today+'|'+type;
+      if(receipt&&receipt.getDataRange().getValues().slice(1).some(row=>String(row[0])===receiptKey))return {ok:true,alreadyFinalized:true};
+      const rows=records.getDataRange().getValues(),matches=[];
+      for(let i=1;i<rows.length;i++)if(String(rows[i][1])===name&&formatDate_(rows[i][2])===today&&String(rows[i][3])===type&&rows[i][5]!==true)matches.push(i);
+      let record=null;
+      if(input.active){
+        if(matches.length){const row=rows[matches[0]];record={id:String(row[0]),name,date:today,type,at:new Date(row[4]).getTime(),sites:[]};}
+        else{const id=Utilities.getUuid(),at=finalizing?new Date(today+'T00:00:00+09:00').getTime():Date.now();records.appendRow([id,name,today,type,new Date(at),false,'[]','','']);record={id,name,date:today,type,at,sites:[]};audit_(book,'打刻',id,name,'',today+' '+type);}
+      }else for(const i of matches){records.getRange(i+1,6).setValue(true);audit_(book,'出張・夜勤取消',String(rows[i][0]),name,today+' '+type,'取消');}
+      if(receipt)receipt.appendRow([receiptKey,name,today,type,input.active,new Date()]);
+      return {ok:true,record};
+    }
     if (input.action === 'punch') {
       if (!input.name || !input.date || !TYPES.includes(input.type)) throw new Error('打刻内容が不正です');
       if(!verifyDeviceToken_(book,String(input.name),String(input.deviceToken||'')))throw new Error('この端末の本人登録を確認できません。端末登録をやり直してください');
@@ -563,7 +675,7 @@ function mutate_(input) {
       return {ok:true,firstSetup:!current,confirmed,closed,period,records:readRecords_(book).filter(record=>record.name===name&&record.date>=period.start&&record.date<=period.end),member:{joinDate:member[3]?formatDate_(member[3]):'',leaveDate:member[4]?formatDate_(member[4]):''},leaves};
     }
     if (input.action === 'submitCorrectionRequest') {
-      const name=String(input.name||''),pin=String(input.personalPin||''),recordId=String(input.recordId||''),newDate=String(input.date||''),newType=String(input.type||''),newAt=Number(input.at);validatePersonalAccess_(book,members,name,pin,String(input.deviceToken||''));if(!recordId||!/^\d{4}-\d{2}-\d{2}$/.test(newDate)||!TYPES.includes(newType)||!newAt)throw new Error('修正内容を確認してください');const values=records.getDataRange().getValues();let found=-1;for(let i=1;i<values.length;i++)if(String(values[i][0])===recordId&&String(values[i][1])===name&&values[i][5]!==true)found=i;if(found<0)throw new Error('対象の打刻が見つかりません');const oldDate=formatDate_(values[found][2]),oldType=String(values[found][3]),oldAt=new Date(values[found][4]),today=Utilities.formatDate(new Date(),'Asia/Tokyo','yyyy-MM-dd');if(oldDate!==today||newDate!==today)throw new Error('打刻修正申請は当日の記録に限ります。当日以外は管理者へ報告してください');if(isDateLocked_(book,oldDate)||isDateLocked_(book,newDate))throw new Error('締済み期間の修正は申請できません');const requestSheet=ensureSheet_(book,CORRECTION_SHEET,['申請ID','氏名','対象記録ID','申請日時','修正前日付','修正前種別','修正前時刻','修正後日付','修正後種別','修正後時刻','状態','承認管理者','承認日時']),requestId=Utilities.getUuid();requestSheet.appendRow([requestId,name,recordId,new Date(),oldDate,oldType,oldAt,newDate,newType,new Date(newAt),'申請中','','']);audit_(book,'打刻修正申請',recordId,name,`${oldDate} ${oldType} ${Utilities.formatDate(oldAt,'Asia/Tokyo','HH:mm')}`,`${newDate} ${newType} ${Utilities.formatDate(new Date(newAt),'Asia/Tokyo','HH:mm')}`);return {ok:true,requestId};
+      const name=String(input.name||''),pin=String(input.personalPin||''),recordId=String(input.recordId||''),newDate=String(input.date||''),newType=String(input.type||''),newAt=Number(input.at);validatePersonalAccess_(book,members,name,pin,String(input.deviceToken||''));if(!recordId||!/^\d{4}-\d{2}-\d{2}$/.test(newDate)||!(TYPES.includes(newType)||newType==='取消')||!newAt)throw new Error('修正内容を確認してください');const values=records.getDataRange().getValues();let found=-1;for(let i=1;i<values.length;i++)if(String(values[i][0])===recordId&&String(values[i][1])===name&&values[i][5]!==true)found=i;if(found<0)throw new Error('対象の打刻が見つかりません');const oldDate=formatDate_(values[found][2]),oldType=String(values[found][3]),oldAt=new Date(values[found][4]),today=Utilities.formatDate(new Date(),'Asia/Tokyo','yyyy-MM-dd');const yesterday=Utilities.formatDate(new Date(Date.now()-86400000),'Asia/Tokyo','yyyy-MM-dd'),supplement=['夜勤','出張'].includes(oldType);if(newDate!==oldDate||!(oldDate===today||(supplement&&oldDate===yesterday)))throw new Error('出張・夜勤は翌日中まで、その他は当日中だけ申請できます');if(!TYPES.includes(oldType)||(newType!=='取消'&&newType!==oldType))throw new Error('打刻の種別は変更できません');if(isDateLocked_(book,oldDate)||isDateLocked_(book,newDate))throw new Error('締済み期間の修正は申請できません');const requestSheet=ensureSheet_(book,CORRECTION_SHEET,['申請ID','氏名','対象記録ID','申請日時','修正前日付','修正前種別','修正前時刻','修正後日付','修正後種別','修正後時刻','状態','承認管理者','承認日時']),requestId=Utilities.getUuid();supersedePendingCorrections_(requestSheet,name,recordId);requestSheet.appendRow([requestId,name,recordId,new Date(),oldDate,oldType,oldAt,newDate,newType,new Date(newAt),'申請中','','']);audit_(book,'打刻修正申請',recordId,name,`${oldDate} ${oldType} ${Utilities.formatDate(oldAt,'Asia/Tokyo','HH:mm')}`,`${newDate} ${newType} ${Utilities.formatDate(new Date(newAt),'Asia/Tokyo','HH:mm')}`);return {ok:true,requestId};
     }
     if (input.action === 'addSiteByStaff') {
       const name=String(input.name || '').trim();
@@ -585,7 +697,7 @@ function mutate_(input) {
     }
     if (!isAdmin_(String(input.adminName || '')) || String(input.pin || '') !== PropertiesService.getScriptProperties().getProperty('ADMIN_PIN')) throw new Error('管理者名または暗証番号が違います');
     if (input.action === 'resetDeviceRegistration') { const name=String(input.name||''),sheet=ensureSheet_(book,DEVICE_SHEET,['端末ID','氏名','端末トークンハッシュ','登録日時','最終使用日時','有効']),rows=sheet.getDataRange().getValues();let count=0;for(let i=1;i<rows.length;i++)if(String(rows[i][1])===name&&rows[i][5]!==false){sheet.getRange(i+1,6).setValue(false);count++;}audit_(book,'本人端末登録解除','',name,`${count}台`,'無効');return {ok:true,count}; }
-    if (input.action === 'reviewCorrectionRequest') { const requestId=String(input.requestId||''),decision=String(input.decision||''),sheet=ensureSheet_(book,CORRECTION_SHEET,['申請ID','氏名','対象記録ID','申請日時','修正前日付','修正前種別','修正前時刻','修正後日付','修正後種別','修正後時刻','状態','承認管理者','承認日時']),requests=sheet.getDataRange().getValues();let requestRow=-1;for(let i=1;i<requests.length;i++)if(String(requests[i][0])===requestId&&String(requests[i][10])==='申請中')requestRow=i;if(requestRow<1)throw new Error('申請中の修正が見つかりません');const request=requests[requestRow];if(decision==='承認'){const recordRows=records.getDataRange().getValues();let recordRow=-1;for(let i=1;i<recordRows.length;i++)if(String(recordRows[i][0])===String(request[2])&&recordRows[i][5]!==true)recordRow=i;if(recordRow<1)throw new Error('対象の打刻が見つかりません');const newDate=formatDate_(request[7]),newType=String(request[8]),newAt=new Date(request[9]);if(isDateLocked_(book,formatDate_(recordRows[recordRow][2]))||isDateLocked_(book,newDate))throw new Error('締済み期間は修正できません');records.getRange(recordRow+1,3,1,3).setValues([[newDate,newType,newAt]]);records.getRange(recordRow+1,9).setValue(earlyLeaveMinutes_(newType,newAt.getTime(),newDate)||'');audit_(book,'打刻修正申請承認',String(request[2]),String(request[1]),`${formatDate_(recordRows[recordRow][2])} ${recordRows[recordRow][3]} ${Utilities.formatDate(new Date(recordRows[recordRow][4]),'Asia/Tokyo','HH:mm')}`,`${newDate} ${newType} ${Utilities.formatDate(newAt,'Asia/Tokyo','HH:mm')}`);}else if(decision!=='却下')throw new Error('承認または却下を指定してください');sheet.getRange(requestRow+1,11,1,3).setValues([[decision,String(input.adminName||''),new Date()]]);if(decision==='却下')audit_(book,'打刻修正申請却下',String(request[2]),String(request[1]),'申請中','却下');refreshMonthlySummarySheet_();return {ok:true,decision}; }
+    if (input.action === 'reviewCorrectionRequest') { const requestId=String(input.requestId||''),decision=String(input.decision||''),sheet=ensureSheet_(book,CORRECTION_SHEET,['申請ID','氏名','対象記録ID','申請日時','修正前日付','修正前種別','修正前時刻','修正後日付','修正後種別','修正後時刻','状態','承認管理者','承認日時']),requests=sheet.getDataRange().getValues();let requestRow=-1;for(let i=1;i<requests.length;i++)if(String(requests[i][0])===requestId&&String(requests[i][10])==='申請中')requestRow=i;if(requestRow<1)throw new Error('申請中の修正が見つかりません');const request=requests[requestRow];if(decision==='承認'){const recordRows=records.getDataRange().getValues();let recordRow=-1;for(let i=1;i<recordRows.length;i++)if(String(recordRows[i][0])===String(request[2])&&recordRows[i][5]!==true)recordRow=i;if(recordRow<1)throw new Error('対象の打刻が見つかりません');const newDate=formatDate_(request[7]),newType=String(request[8]),newAt=new Date(request[9]);if(isDateLocked_(book,formatDate_(recordRows[recordRow][2]))||isDateLocked_(book,newDate))throw new Error('締済み期間は修正できません');if(newType==='取消'){if(!TYPES.includes(String(recordRows[recordRow][3])))throw new Error('取消できない打刻です');records.getRange(recordRow+1,6).setValue(true);}else{records.getRange(recordRow+1,3,1,3).setValues([[newDate,newType,newAt]]);records.getRange(recordRow+1,9).setValue(earlyLeaveMinutes_(newType,newAt.getTime(),newDate)||'');}audit_(book,'打刻修正申請承認',String(request[2]),String(request[1]),`${formatDate_(recordRows[recordRow][2])} ${recordRows[recordRow][3]} ${Utilities.formatDate(new Date(recordRows[recordRow][4]),'Asia/Tokyo','HH:mm')}`,`${newDate} ${newType} ${Utilities.formatDate(newAt,'Asia/Tokyo','HH:mm')}`);}else if(decision!=='却下')throw new Error('承認または却下を指定してください');sheet.getRange(requestRow+1,11,1,3).setValues([[decision,String(input.adminName||''),new Date()]]);if(decision==='却下')audit_(book,'打刻修正申請却下',String(request[2]),String(request[1]),'申請中','却下');if(decision==='承認'){recalculateCorrectedDay_(records,String(request[1]),formatDate_(request[4]));if(formatDate_(request[7])!==formatDate_(request[4]))recalculateCorrectedDay_(records,String(request[1]),formatDate_(request[7]));refreshMonthlySummarySheet_();refreshYearlySiteLaborSheet_();refreshMissingPunchSheet_();}return {ok:true,decision}; }
     if (input.action === 'addMember') { if (!input.name) throw new Error('氏名を入力してください'); members.appendRow([input.name, true, '']);audit_(book, 'メンバー追加', '', input.name, '', input.name); }
     else if (input.action === 'resetPersonalPin') { const rows=members.getDataRange().getValues(); let found=-1; for(let i=1;i<rows.length;i++) if(String(rows[i][0])===String(input.name)) found=i; if(found<0) throw new Error('メンバーが見つかりません'); members.getRange(found+1,3).clearContent(); audit_(book,'個人PINリセット','',input.name,'設定済','未設定'); }
     else if (input.action === 'removeMember') { const rows=members.getDataRange().getValues(); for(let i=1;i<rows.length;i++) if(String(rows[i][0])===input.name) members.getRange(i+1,2).setValue(false);audit_(book, 'メンバー無効化', '', input.name, input.name, ''); }
@@ -648,11 +760,11 @@ function readRecords_(book) {
     .map(recordFromRow_);
 }
 
-function readRecordsForDate_(book,date) {
+function readRecordsForDate_(book,date,personalName) {
   const sheet=ensureSheet_(book, RECORD_SHEET, ['記録ID', '氏名', '日付', '打刻種別', '打刻日時', '削除済', '現場名', '戻り予定時刻', '早退時間（分）']);
   const lastRow=sheet.getLastRow();
   if(lastRow<2)return [];
-  const rowNumbers=sheet.getRange(2,3,lastRow-1,1).getValues().map((row,index)=>row[0]&&formatDate_(row[0])===date?index+2:0).filter(Boolean);
+  const rowNumbers=sheet.getRange(2,2,lastRow-1,2).getValues().map((row,index)=>row[1]&&formatDate_(row[1])===date&&(!personalName||String(row[0])===personalName)?index+2:0).filter(Boolean);
   if(!rowNumbers.length)return [];
   const groups=[];
   rowNumbers.forEach(row=>{const last=groups[groups.length-1];if(last&&row===last.end+1)last.end=row;else groups.push({start:row,end:row});});
@@ -663,7 +775,7 @@ function readRecordsForDate_(book,date) {
 
 function recordFromRow_(row) {
   const date=formatDate_(row[2]), type=String(row[3]), at=new Date(row[4]).getTime();
-  return { id:String(row[0]), name:String(row[1]), date, type, at, sites:parseSites_(row[6]), expectedReturn:String(row[7] || ''), earlyLeaveMinutes:Number(row[8])||earlyLeaveMinutes_(type,at,date) };
+  return { id:String(row[0]), name:String(row[1]), date, type, at, sites:parseSites_(row[6]), expectedReturn:String(row[7] || ''), earlyLeaveMinutes:earlyLeaveMinutes_(type,at,date) };
 }
 
 function readPinStatus_(book) {
@@ -675,6 +787,26 @@ function readDeviceStatus_(book) {
   const rows=ensureSheet_(book,DEVICE_SHEET,['端末ID','氏名','端末トークンハッシュ','登録日時','最終使用日時','有効']).getDataRange().getValues().slice(1),counts={};
   rows.forEach(row=>{if(row[1]&&row[5]!==false)counts[String(row[1])]=(counts[String(row[1])]||0)+1;});
   return Object.keys(counts).map(name=>({name,count:counts[name]}));
+}
+
+function recalculateCorrectedDay_(sheet,name,date) {
+  const rows=sheet.getDataRange().getValues(),events=rows.slice(1).filter(row=>String(row[1])===name&&formatDate_(row[2])===date&&row[5]!==true).map(recordFromRow_);
+  const fullDay=attendanceCreditForDay_(events)===1;
+  rows.forEach((row,index)=>{
+    if(index>0&&String(row[1])===name&&formatDate_(row[2])===date&&row[5]!==true){
+      const minutes=fullDay?earlyLeaveMinutes_(String(row[3]),new Date(row[4]).getTime(),date):0;
+      sheet.getRange(index+1,9).setValue(minutes||'');
+    }
+  });
+}
+
+function supersedePendingCorrections_(sheet,name,recordId) {
+  const rows=sheet.getDataRange().getValues();
+  for(let i=1;i<rows.length;i++){
+    if(String(rows[i][1])===name&&String(rows[i][2])===recordId&&String(rows[i][10])==='申請中'){
+      sheet.getRange(i+1,11).setValue('再申請により無効');
+    }
+  }
 }
 
 function readCorrectionRequests_(book) {
@@ -816,6 +948,7 @@ function refreshBulkEditSheet_(){
   sheet.clear();sheet.getRange('A1:J1').merge().setValue('打刻記録　一括修正').setBackground('#14532d').setFontColor('#fff').setFontSize(16).setFontWeight('bold').setHorizontalAlignment('center');sheet.getRange('A2:J2').merge().setValue('修正する行の「反映」にチェックし、変更項目だけ入力します。削除する場合は「削除」にもチェックしてください。').setBackground('#dcfce7').setFontColor('#14532d');sheet.getRange(4,1,1,10).setValues([['反映','記録ID','氏名','現在日付','現在種別','現在時刻','新しい日付','新しい種別','新しい時刻','削除']]).setBackground('#bbf7d0').setFontWeight('bold');
   if(records.length){sheet.getRange(5,1,records.length,10).setValues(records.map(record=>[false,record.id,record.name,record.date,record.type,new Date(record.at),'','','',false]));sheet.getRange(5,1,records.length,1).insertCheckboxes();sheet.getRange(5,10,records.length,1).insertCheckboxes();sheet.getRange(5,4,records.length,1).setNumberFormat('yyyy-mm-dd');sheet.getRange(5,6,records.length,1).setNumberFormat('HH:mm');sheet.getRange(5,7,records.length,1).setNumberFormat('yyyy-mm-dd');sheet.getRange(5,9,records.length,1).setNumberFormat('HH:mm');sheet.getRange(5,2,records.length,5).setBackground('#f3f4f6').setFontColor('#6b7280');sheet.getRange(5,7,records.length,3).setBackground('#fef9c3');}
   [55,235,120,90,85,75,95,90,80,55].forEach((width,index)=>sheet.setColumnWidth(index+1,width));sheet.setFrozenRows(4);sheet.setHiddenGridlines(true);
+  configureInputDropdowns_();
 }
 function applyBulkEditSheet(){
   const book=SpreadsheetApp.getActive(),editSheet=book.getSheetByName(BULK_EDIT_SHEET);if(!editSheet)throw new Error('一括修正シートがありません');const input=editSheet.getLastRow()>4?editSheet.getRange(5,1,editSheet.getLastRow()-4,10).getValues().filter(row=>row[0]===true):[];if(!input.length)throw new Error('「反映」にチェックされた行がありません');const recordSheet=ensureSheet_(book,RECORD_SHEET,['記録ID','氏名','日付','打刻種別','打刻日時','削除済','現場名','戻り予定時刻','早退時間（分）']),values=recordSheet.getDataRange().getValues();let changed=0;
