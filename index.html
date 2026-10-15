@@ -160,6 +160,7 @@
     @media (min-width:600px) { body { padding:24px 0; } .shell { min-height:calc(100vh - 48px); border-radius:28px; } }
     @media (max-width:370px) { #clock { font-size:43px; } .punch { min-height:104px; padding:9px 13px; } .brand h1 { font-size:18px; } }
       #gamesOpen[hidden] { display:none; }
+    .correction-picks{display:grid;gap:10px;margin:16px 0}.correction-pick{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:58px;padding:15px 18px;border:1px solid #bcded3;border-radius:14px;background:#f0f9f5;color:#105d4c;text-align:left}.correction-pick strong{font-size:18px}.correction-pick span{font-size:20px;font-variant-numeric:tabular-nums}.correction-selected{padding:16px;border:1px solid #bcded3;border-radius:14px;background:#f0f9f5;color:#105d4c;font-size:17px;font-weight:700}.correction-wide{display:block;width:100%;min-height:46px;margin:12px 0;padding:12px;border-radius:12px}.correction-cancel{border:1px solid #bd3546;background:#fff0f2;color:#9d2032;font-weight:700}
   </style>
 </head>
 <body>
@@ -365,33 +366,43 @@ function tick(){const d=new Date(),date=keyDate(d);if(window.kintaiDisplayedDate
     function updateCorrectionReviewButton(){const count=Number(data.pendingCorrectionCount??(data.correctionRequests||[]).length),button=$('#correctionReviewOpen');button.hidden=!data.admins.includes($('#employee').value)||count<1;button.textContent=`打刻修正依頼（${count}件）`;}
     function correctionTime(at){return new Date(at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Tokyo'});}
     function showTodayCorrectionForm(records,name,auth={}){
-      const today=keyDate(new Date()),eligible=records.filter(record=>record.id&&(record.date===today||(['夜勤','出張'].includes(record.type)&&record.date===keyDate(new Date(Date.now()-86400000)))));
+      const today=keyDate(new Date()),eligible=records.filter(record=>record.id&&record.name===name&&(record.date===today||(['夜勤','出張'].includes(record.type)&&record.date===keyDate(new Date(Date.now()-86400000)))));
       if(!eligible.length)return alert('修正申請できる打刻はありません。出張・夜勤は翌日中まで、その他は当日中に申請してください。');
       const dialog=$('#personalDialog');if(!dialog.open)dialog.showModal();
-      $('#personalContent').innerHTML=`<h2>打刻修正申請</h2><p class="hint">出張・夜勤は翌日中まで取消申請できます。その他は当日の時刻だけ修正できます。</p><label class="field">修正する打刻<select id="todayCorrectionRecord" style="width:100%;padding:12px;border-radius:9px">${[...eligible].sort((a,b)=>b.at-a.at).map(record=>`<option value="${esc(record.id)}">${esc(record.date)} ${esc(record.type)} ${correctionTime(record.at)}</option>`).join('')}</select></label><label class="field">修正後の時刻<input class="correction-time" id="todayCorrectionTime" type="time" step="60" required></label><label class="field" id="supplementCancelField" hidden><input type="checkbox" id="supplementCancel"> この出張・夜勤の記録を取り消す</label><div class="modal-actions"><button class="secondary" id="todayCorrectionClose">キャンセル</button><button class="primary" id="todayCorrectionSubmit">修正申請を送信</button></div>`;
-      const select=$('#todayCorrectionRecord'),time=$('#todayCorrectionTime'),selected=()=>eligible.find(record=>record.id===select.value);
-      select.onchange=()=>{const record=selected(),supplement=['夜勤','出張'].includes(record.type);time.value=correctionTime(record.at);$('#supplementCancelField').hidden=!supplement;$('#supplementCancel').checked=supplement;time.disabled=supplement;};$('#supplementCancel').onchange=()=>{time.disabled=$('#supplementCancel').checked;};select.onchange();
-      $('#todayCorrectionClose').onclick=()=>dialog.close();
-      $('#todayCorrectionSubmit').onclick=async()=>{
-        const record=selected(),value=time.value,cancel=['夜勤','出張'].includes(record.type)&&$('#supplementCancel').checked;
-        if(!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))return alert('修正後の時刻を選んでください');
+      let submitting=false;
+      const close=()=>{if(!submitting)dialog.close();};
+      function pick(){
+        const ordered=[...eligible].sort((a,b)=>a.date.localeCompare(b.date)||a.at-b.at);
+        $('#personalContent').innerHTML='<h2>どの打刻を変更しますか？</h2><p class="hint">当日の打刻を選んでください。時刻変更・キャンセルは管理者の承認後に反映されます。出張・夜勤は前日分も取消申請できます。</p><div class="correction-picks" id="todayCorrectionChoices"></div><button class="secondary correction-wide" id="todayCorrectionClose" type="button">閉じる</button>';
+        for(const record of ordered){const button=document.createElement('button'),kind=document.createElement('strong'),time=document.createElement('span');button.type='button';button.className='correction-pick';kind.textContent=record.type;time.textContent=(record.date===today?'':record.date+' ')+correctionTime(record.at);button.append(kind,time);button.onclick=()=>{if(!submitting)edit(record);};$('#todayCorrectionChoices').append(button);}
+        $('#todayCorrectionClose').onclick=close;dialog.scrollTop=0;
+      }
+      function edit(record){
+        $('#personalContent').innerHTML=`<h2>打刻の変更</h2><p class="correction-selected">${esc(record.type)}　${correctionTime(record.at)}（${esc(record.date)}）</p><form id="todayCorrectionForm"><label class="field">変更後の時刻<input class="correction-time" id="todayCorrectionTime" type="time" step="60" value="${correctionTime(record.at)}" required></label><button class="primary correction-wide" id="todayCorrectionSubmit" type="submit">時刻の変更を申請</button><button class="correction-cancel correction-wide" id="todayCorrectionCancel" type="button">この打刻をキャンセル</button><button class="secondary correction-wide" id="todayCorrectionBack" type="button">打刻を選び直す</button></form><p class="hint">時刻変更・キャンセルは管理者の承認後に反映されます。</p><button class="secondary correction-wide" id="todayCorrectionClose" type="button">閉じる</button>`;
+        $('#todayCorrectionForm').onsubmit=event=>{event.preventDefault();submit(record,false);};$('#todayCorrectionCancel').onclick=()=>submit(record,true);$('#todayCorrectionBack').onclick=()=>{if(!submitting)pick();};$('#todayCorrectionClose').onclick=close;dialog.scrollTop=0;
+      }
+      function submit(record,cancel){
+        if(submitting)return;
+        const value=$('#todayCorrectionTime').value;
+        if(!cancel&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(value))return alert('修正後の時刻を選んでください');
         if(keyDate(new Date())!==today)return alert('日付が変わりました。修正申請画面を開き直してください。');
-        const at=new Date(`${record.date}T${value}:00+09:00`).getTime();
+        const at=cancel?record.at:new Date(`${record.date}T${value}:00+09:00`).getTime();
         if(!confirm(cancel?`${record.date} ${record.type}の取消を申請しますか？`:`${record.type} ${correctionTime(record.at)} → ${value}\nこの内容で修正申請しますか？`))return;
-        $('#todayCorrectionSubmit').disabled=true;
+        submitting=true;$('#personalContent').querySelectorAll('button').forEach(button=>button.disabled=true);
         dialog.close();
-        sendOperationInBackground({action:'submitCorrectionRequest',name,...auth,recordId:record.id,date:record.date,type:cancel?'取消':record.type,at},'打刻修正申請',result=>{
+        sendOperationInBackground({action:'submitCorrectionRequest',name,...auth,recordId:record.id,date:record.date,type:cancel?'取消':record.type,at},cancel?'打刻キャンセル申請':'打刻修正申請',result=>{
           refreshCorrectionNotice();
           if($('#employee').value===name)showPersonalCorrectionStatus({date:today,pendingIds:[result.requestId]});
           refreshPersonalCorrectionResults();
         });
-      };
+      }
+      pick();
     }
     $('#correctionOpen').addEventListener('click',async()=>{
       if(!await verifyPunchIdentity())return;
       const button=$('#correctionOpen'),registration=readDeviceRegistration(),name=$('#employee').value;
       button.disabled=true;button.textContent='申請対象を確認中…';
-      try{const result=await callShared({action:'personalSupplementRecords',name,deviceToken:registration?.deviceToken||''});if(!result.ok)return alert(result.error||'申請対象を読み込めません');const records=[...data.records,...(result.records||[])].filter((record,index,rows)=>rows.findIndex(item=>item.id===record.id)===index);showTodayCorrectionForm(records,name,{deviceToken:registration?.deviceToken||''});}
+      try{const result=await callShared({action:'personalCorrectionRecords',name,deviceToken:registration?.deviceToken||''});if(!result.ok)return alert(result.error||'申請対象を読み込めません');showTodayCorrectionForm(result.records||[],name,{deviceToken:registration?.deviceToken||''});}
       finally{button.disabled=false;button.textContent='✏️ 打刻修正申請';}
     });
     let personalCorrectionBusy=false;
