@@ -1,3 +1,29 @@
+/* Freeze the page underneath every dialog, including on iPhone. */
+(()=>{
+  let saved=null;
+  const body=document.body,root=document.documentElement;
+  const properties=['position','top','left','width','overflow','paddingRight'];
+  const update=()=>{
+    const open=!!document.querySelector('dialog[open]');
+    if(open&&!saved){
+      saved={x:window.scrollX,y:window.scrollY,body:{},rootOverflow:root.style.overflow,rootBehavior:root.style.scrollBehavior};
+      properties.forEach(key=>saved.body[key]=body.style[key]);
+      const gap=Math.max(0,window.innerWidth-root.clientWidth),padding=parseFloat(getComputedStyle(body).paddingRight)||0;
+      Object.assign(body.style,{position:'fixed',top:-saved.y+'px',left:-saved.x+'px',width:'100%',overflow:'hidden',paddingRight:padding+gap+'px'});
+      root.style.overflow='hidden';
+    }else if(!open&&saved){
+      const previous=saved;saved=null;
+      properties.forEach(key=>body.style[key]=previous.body[key]);
+      root.style.overflow=previous.rootOverflow;root.style.scrollBehavior='auto';
+      window.scrollTo(previous.x,previous.y);root.style.scrollBehavior=previous.rootBehavior;
+    }
+  };
+  const style=document.createElement('style');
+  style.textContent='dialog[open]{position:fixed;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;}';
+  document.head.appendChild(style);
+  new MutationObserver(update).observe(body,{subtree:true,childList:true,attributes:true,attributeFilter:['open']});
+  update();
+})();
 /* Shared calendar: identity and server authorization are supplied by the host app. */
 window.createSharedCalendar=function(adapter){
   let dialog=document.createElement('dialog');
