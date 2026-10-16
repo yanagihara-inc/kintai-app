@@ -9,6 +9,20 @@
 .calendar-month-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid #d4e1ed}.calendar-month-nav button{padding:8px 12px}.shared-calendar-dialog input[type=time]{display:block;width:100%;box-sizing:border-box;min-height:54px;padding:10px 14px;font-size:24px;font-weight:700;font-variant-numeric:tabular-nums;background:#eef6ff;color:#174d79;border:2px solid #95bde0;border-radius:10px}.calendar-time-badge{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}.calendar-week-item small{font-size:17px;font-weight:700;color:#174d79;margin-top:6px}
 .shared-calendar-dialog input[type=date]{display:block;box-sizing:border-box;width:100%;min-height:48px;font-size:20px;font-weight:700;padding:8px;color:#174d79}.calendar-date-open{margin-top:6px;padding:8px 12px}.calendar-date-picker{padding:12px;border:1px solid #a9c6e0;border-radius:12px;background:#f7fbff;margin:12px 0}.calendar-date-picker[hidden]{display:none}.shared-calendar-dialog .calendar-picker-range{background:#2479b5;color:#fff;font-weight:800}.calendar-date-picker .calendar-selected{outline-color:#ef8a15;outline-width:3px}
 .shared-calendar-dialog{overflow-anchor:none;scroll-behavior:auto}.shared-calendar-dialog .modal{overflow-anchor:none}
+/* Rounded administrator menu and forms, consistent with the home screen. */
+.shared-calendar-dialog.name-admin-dialog{width:min(92vw,540px);max-height:90dvh;overflow:auto;border-radius:26px;background:#fff}
+.name-admin-dialog .modal{padding:24px}
+.name-admin-dialog .name-admin-nav{margin-top:0;justify-content:space-between;flex-wrap:wrap}
+.name-admin-dialog .name-admin-nav:has(> :only-child){justify-content:flex-end}
+.name-admin-dialog button{border-radius:999px;min-height:44px}
+.name-admin-dialog input{border-radius:15px;border:1px solid #cbded6;background:#fbfdfc}
+.name-admin-dialog .name-admin-choices{display:grid;gap:14px;margin:22px 0 8px}
+.name-admin-dialog .name-admin-choices button{border-radius:21px;min-height:82px;padding:18px 22px;text-align:left;background:#e8f5ef;color:#135e4c;box-shadow:0 5px 14px #183c3210;font-size:18px;font-weight:700}
+.name-admin-dialog .name-admin-choices button:last-child{background:#edf4fc;color:#275b86}
+.name-admin-dialog .name-admin-choices span{display:block;margin-top:5px;font-size:12px;font-weight:400;line-height:1.5}
+.name-admin-dialog .calendar-title-manager{border-radius:21px}
+.name-admin-dialog .calendar-title-manager button{border-radius:999px}
+.name-admin-dialog .calendar-title-manager input{border-radius:15px}
 .shared-calendar-dialog.calendar-edit-dialog{position:fixed;top:4vh;top:4dvh;bottom:auto;margin-top:0;margin-bottom:0;max-height:88vh;max-height:88dvh}.calendar-week-nav{scroll-margin-top:12px}
 .calendar-main-actions{display:flex;gap:10px;align-items:stretch;margin:12px 0}.calendar-main-actions [data-today]{flex:1}.calendar-main-actions [data-add]{flex:2}
 .calendar-add-bottom{width:100%;margin-top:12px}
