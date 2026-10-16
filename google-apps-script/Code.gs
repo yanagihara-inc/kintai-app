@@ -78,6 +78,7 @@ function onOpen() {
     .addItem('一括修正シートを更新', 'showBulkEditRefreshProgress')
     .addItem('一括修正を反映', 'showBulkEditApplyProgress')
     .addItem('入力欄のプルダウンを設定・更新', 'configureInputDropdowns')
+    .addItem('現場シートに予定名の入力欄を追加', 'initializeScheduleNames')
     .addItem('休暇・遅刻を登録', 'registerLeaveFromMenu')
     .addItem('現場移動時間を登録', 'registerSiteMoveFromMenu')
     .addItem('対象月を締める', 'closeMonthFromMenu')
@@ -496,7 +497,7 @@ function applySummaryEditSheet() {
   memberSheet.getDataRange().getValues().slice(1).forEach(row => { if (row[0]) pinHashByName[String(row[0]).trim()] = row[2] || ''; });
   replaceSheetData_(memberSheet, memberInput.map(row => { const name=String(row[0]).trim(); return [name, row[1] !== false, pinHashByName[name] || '', row[3] ? formatDate_(row[3]) : '', row[4] ? formatDate_(row[4]) : '']; }), 5);
   if (memberSheet.getMaxColumns() >= 6) memberSheet.getRange(1, 6, memberSheet.getMaxRows(), 1).clearContent();
-  replaceSheetData_(ensureSheet_(book, SITE_SHEET, ['現場名', '有効']), siteInput.map(row => [String(row[0]).trim(), row[1] !== false]), 2);
+  replaceSiteRows_(ensureSheet_(book, SITE_SHEET, ['現場名', '有効']), siteInput.map(row => [String(row[0]).trim(), row[1] !== false]));
   replaceSheetData_(ensureSheet_(book, HOLIDAY_SHEET, ['日付', '休日名', '有効', '区分']), holidayInput.map(row => [formatDate_(row[0]), String(row[1] || '').trim() || '休日', row[2] !== false, String(row[3] || 'manual').trim() || 'manual']), 4);
   replaceSheetData_(ensureSheet_(book, SETTINGS_SHEET, ['項目', '値']), [
     ['会社名', companyName], ['管理者', admins], ['締め日', closingDay], ['残業開始時刻', overtimeStart]
@@ -573,10 +574,11 @@ function readAll_(knownVersion,personalName) {
   const holidays = ensureSheet_(book, HOLIDAY_SHEET, ['日付', '休日名', '有効', '区分']).getDataRange().getValues().slice(1)
     .filter(row => row[0] && row[2] !== false).map(row => ({ date: formatDate_(row[0]), name: String(row[1]), source: String(row[3] || 'manual') }));
   const settings = readSettings_(book);
-  return Object.assign(result, { employees: members, sites, holidays, pinConfiguredNames, companyName: settings.companyName, admins: settings.admins, closingDay: settings.closingDay, overtimeStart: settings.overtimeStart });
+  return Object.assign(result, { employees: members, sites, scheduleNames:readScheduleNames_(book), holidays, pinConfiguredNames, companyName: settings.companyName, admins: settings.admins, closingDay: settings.closingDay, overtimeStart: settings.overtimeStart });
 }
 
 function mutate_(input) {
+  if(['calendarTitlesRead','calendarTitlesSave'].includes(input.action))return calendarTitlesAction_(input);
   if(['calendarRead','calendarSave','calendarDelete'].includes(input.action))return calendarAction_(input);
   if(['personalSupplementRecords','personalCorrectionRecords'].includes(input.action)){
     const book=SpreadsheetApp.getActive(),name=String(input.name||'');
