@@ -203,6 +203,7 @@
     const initial={ employees:['山田 太郎'], sites:[], holidays:[], records:[], pinStatus:[], pinConfiguredNames:[], correctionRequests:[], pin:'1234', companyName:'会社名を設定', admins:[], closingDay:20, overtimeStart:'18:00' };
     let storedConfig=null;try{storedConfig=JSON.parse(localStorage.getItem(CONFIG_KEY)||'null');}catch(_){storedConfig=null;}
     let configVersion=String(storedConfig?.version||''),data={...initial,...(storedConfig?.data||{}),records:[],pinStatus:[]};
+    if(!Array.isArray(data.scheduleNames))configVersion='';
     data.sites ||= [];
     data.holidays ||= [];
     data.admins ||= [];
