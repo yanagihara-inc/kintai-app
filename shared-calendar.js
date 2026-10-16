@@ -164,6 +164,9 @@ window.createSharedCalendar=function(adapter){
     if(serial!==requestSerial||!dialog.open)return;
     sites=[...new Set((sites||[]).filter(s=>typeof s==='string'&&s.trim()))];
     if(copy&&!sites.includes(siteName(copy)))sites.push(siteName(copy));
+    let configuredWorks;
+    try{configuredWorks=adapter.getScheduleNames?await adapter.getScheduleNames():undefined;}catch(error){if(serial===requestSerial&&dialog.open)dialog.querySelector('[data-status]').textContent='予定名を読み込めません：'+error.message;return;}
+    if(serial!==requestSerial||!dialog.open)return;
     const e=event||(copy?{...copy,startDate:date,endDate:shiftDate(date,Math.round((Date.parse(copy.endDate)-Date.parse(copy.startDate))/86400000))}:{title:'',startDate:date,endDate:date,startTime:'',endTime:'',note:''});
     // 一覧のスクロール・フォーカスを持ち越さず、編集画面を開き直す。
     dialog.close();
@@ -177,7 +180,7 @@ window.createSharedCalendar=function(adapter){
     const options=(values,current)=>'<option value="">選択してください</option>'+values.map(value=>'<option value="'+esc(value)+'"'+(value===current?' selected':'')+'>'+esc(value)+'</option>').join('');
     const oldSite=event&&currentSite&&!sites.includes(currentSite)?'<option selected value="'+esc(currentSite)+'">'+esc(currentSite)+'（既存予定・登録外）</option>':'';
     titleInput.closest('label').insertAdjacentHTML('beforebegin','<label class="field">現場名<select name="site" required>'+options(sites,currentSite)+oldSite+'</select></label>'+(!sites.length?'<p class="hint">有効な現場がありません。勤怠アプリで現場を登録してください。</p>':''));
-    const works=['建込','コン打ち','解体','運搬'],aliases={'建込み':'建込','コンクリート打設':'コン打ち','バラシ':'解体'},work=aliases[currentWork]||currentWork;
+    const works=Array.isArray(configuredWorks)?[...new Set(configuredWorks.filter(v=>typeof v==='string'&&v.trim()).map(v=>v.trim()))]:['建込','コン打ち','解体','運搬'],aliases={'建込み':'建込','コンクリート打設':'コン打ち','バラシ':'解体'},work=works.includes(currentWork)?currentWork:(aliases[currentWork]||currentWork);
     titleInput.outerHTML='<select name="title" required>'+options(works,work)+((event||copy)&&work&&!works.includes(work)?'<option selected value="'+esc(work)+'">'+esc(work)+'（既存予定）</option>':'')+'</select>';
     const startDateInput=dialog.querySelector('[name="startDate"]'),endDateInput=dialog.querySelector('[name="endDate"]');
     const datePanel=document.createElement('section');datePanel.className='calendar-date-picker';datePanel.hidden=true;
