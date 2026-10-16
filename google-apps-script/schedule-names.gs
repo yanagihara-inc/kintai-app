@@ -40,6 +40,7 @@ function calendarTitlesAction_(input){
  const book=SpreadsheetApp.getActive(),name=String(input.name||''),adminName=String(input.adminName||name);
  const adminVerified=isAdmin_(adminName)&&!!String(input.pin||'')&&String(input.pin||'')===PropertiesService.getScriptProperties().getProperty('ADMIN_PIN');
  if(input.action==='calendarTitlesRead'){
+  if(!adminVerified&&String(input.pin||''))throw Error('管理者名または暗証番号が違います。本人登録用のPINではなく、管理者用の暗証番号を入力してください');
   const members=ensureSheet_(book,MEMBER_SHEET,['氏名','有効','個人PINハッシュ']).getDataRange().getValues().slice(1);
   if(!adminVerified&&(!members.some(row=>String(row[0])===name&&row[1]!==false)||!verifyDeviceToken_(book,name,String(input.deviceToken||''))))throw Error('有効な本人端末でログインしてください');
   return Object.assign({ok:true},scheduleTitleState_(book));
