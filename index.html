@@ -217,7 +217,7 @@
     let adminPin=data.pin;
     const $=s=>document.querySelector(s), esc=s=>String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;'), jpDate=d=>new Intl.DateTimeFormat('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'}).format(d), keyDate=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'Asia/Tokyo'}).format(d);
     function save(){}
-    function saveConfig(){const keys=['employees','sites','holidays','pinConfiguredNames','companyName','admins','closingDay','overtimeStart'],settings={};keys.forEach(key=>settings[key]=data[key]);localStorage.setItem(CONFIG_KEY,JSON.stringify({version:configVersion,data:settings}));}
+    function saveConfig(){const keys=['employees','sites','scheduleNames','holidays','pinConfiguredNames','companyName','admins','closingDay','overtimeStart'],settings={};keys.forEach(key=>settings[key]=data[key]);localStorage.setItem(CONFIG_KEY,JSON.stringify({version:configVersion,data:settings}));}
     async function callShared(payload){
       const readOnly=['calendarRead','personalCorrectionResults','correctionNotice','correctionReviewList'].includes(payload.action);
       for(let attempt=0;attempt<(readOnly?2:1);attempt++){
@@ -562,7 +562,7 @@ const calendarLocalMode=location.protocol==='file:';
 let calendarLocalRequest;
 const calendarLocalReady=calendarLocalMode?new Promise((resolve,reject)=>{const script=document.createElement('script');script.src='calendar-local-seed.js';script.onload=resolve;script.onerror=()=>reject(Error('ローカル予定を読み込めません'));document.head.appendChild(script);}):Promise.resolve();
 const sharedCalendar=createSharedCalendar({
-  getSites:()=>data.sites,
+  getSites:()=>data.sites,getScheduleNames:()=>data.scheduleNames,
   getIdentity:()=>{const registered=readDeviceRegistration();return {name:registered?.name||$('#employee').value,deviceToken:registered?.deviceToken||''};},
   request:async payload=>{
     if(calendarLocalMode){await calendarLocalReady;calendarLocalRequest ||=createCalendarLocalRequest(name=>data.admins.includes(name));return calendarLocalRequest(payload);}
