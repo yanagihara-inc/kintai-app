@@ -33,12 +33,14 @@ window.createSharedCalendar=function(adapter){
   const esc=s=>String(s||'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;');
   const identity=()=>adapter.getIdentity();
   const cacheKey='kintai-shared-calendar-cache-v1';
+  const acceptTitleChoices=result=>{if(result?.calendarTitleChoices?.titles)adapter.setScheduleNames?.(result.calendarTitleChoices.titles);};
   let calendarCache={};
   try{calendarCache=JSON.parse(sessionStorage.getItem(cacheKey)||'{}')||{};}catch(_){}
   async function readMonth(value){
     const auth=identity(),key=auth.name+'|'+value,cached=calendarCache[key];
     let result=await adapter.request({action:'calendarRead',month:value,knownRevision:cached?.revision||'',...auth});
     if(!result.ok)return result;
+    acceptTitleChoices(result);
     if(result.notModified){
       if(cached)return {ok:true,events:cached.events};
       result=await adapter.request({action:'calendarRead',month:value,...auth});
@@ -54,6 +56,7 @@ window.createSharedCalendar=function(adapter){
     months.forEach(value=>knownRevisions[value]=calendarCache[auth.name+'|'+value]?.revision||'');
     const result=await adapter.request({action:'calendarRead',month:months[1],months,knownRevisions,...auth});
     if(!result.ok)throw Error(result.error||'予定を取得できません');
+    acceptTitleChoices(result);
     // 古いデプロイ、ローカル確認版にも対応。
     if(!result.months)return Promise.all(months.map(readMonth));
     return months.map(value=>{
