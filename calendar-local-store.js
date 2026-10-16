@@ -1,9 +1,19 @@
 // ローカル確認専用。本番のGoogleデータには送信しません。
-window.createCalendarLocalRequest=function(isAdmin){
+window.createCalendarLocalRequest=function(isAdmin,getInitialSites=()=>[]){
   const key='kintai-calendar-local-preview-v1';
   // 写真の2026年10月工程表。既存予定・修正・削除を上書きしない一度限りの追加。
   const photoRows=window.CALENDAR_LOCAL_PHOTO_ROWS||[];
   return async input=>{
+    if(['calendarSitesRead','calendarSitesSave'].includes(input.action)){
+      if(!isAdmin(input.adminName||input.name))return {ok:false,error:'管理者だけが操作できます'};
+      let titles;try{titles=JSON.parse(localStorage.getItem(key+'-sites')||'null');}catch(_){}
+      if(!Array.isArray(titles))titles=getInitialSites();
+      const revision='local:'+JSON.stringify(titles);
+      if(input.action==='calendarSitesRead')return {ok:true,titles,revision};
+      if(input.revision!==revision)return {ok:false,error:'ほかの操作で現場名が変更されました。再読み込みしてください'};
+      try{titles=CalendarTitleChoices.validate(input.titles,{label:'現場名',allowEmpty:true,maxLength:80,maxCount:200});}catch(error){return {ok:false,error:error.message};}
+      localStorage.setItem(key+'-sites',JSON.stringify(titles));return {ok:true,titles,revision:'local:'+JSON.stringify(titles)};
+    }
     if(['calendarTitlesRead','calendarTitlesSave'].includes(input.action)){
       let titles;try{titles=JSON.parse(localStorage.getItem(key+'-titles')||'null');}catch(_){}
       if(!Array.isArray(titles))titles=['建込','コン打ち','解体','運搬'];

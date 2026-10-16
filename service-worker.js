@@ -1,5 +1,5 @@
-const CACHE='rakuraku-kintai-shell-v144';
-const APP_FILES=['./','./index.html','./app-config.js','./shared-calendar.js','./shared-calendar.css','./calendar-local-store.js','./calendar-title-manager.js?v=20261016','./calendar-title-app.js?v=20261016','./shared-calendar.js?v=20261016-titles'];
+const CACHE='rakuraku-kintai-shell-v145';
+const APP_FILES=['./','./index.html','./app-config.js','./shared-calendar.js','./shared-calendar.css','./calendar-local-store.js','./calendar-title-manager.js?v=20261016-sites','./calendar-title-app.js?v=20261016-sites','./shared-calendar.js?v=20261016-titles'];
 const OPTIONAL_FILES=['./integration/games-loader.js','./manifest.webmanifest','./icon-192.png','./icon-512.png','./apple-touch-icon.png','./fox-runner.png'];
 
 self.addEventListener('install',event=>{
