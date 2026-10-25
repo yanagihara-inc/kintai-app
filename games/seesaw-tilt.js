@@ -1,0 +1,15 @@
+(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.SeesawTilt=factory();})(typeof globalThis==='undefined'?this:globalThis,function(){
+'use strict';const clamp=n=>Math.max(-1,Math.min(1,n));
+class Input{
+constructor({host=globalThis,onChange=()=>{}}={}){this.host=host;this.onChange=onChange;this.enabled=false;this.pending=false;this.baseline=null;this.raw=null;this.lastSample=null;this.smooth=0;this.angle=null;this.generation=0;this.timer=null;this.message='左右ボタンでも遊べます';this.listener=e=>this.orientation(e);}
+now(){return this.host.performance.now();}
+notify(message){this.message=message;this.onChange(this);}
+async enable(){if(this.enabled||this.pending)return;const serial=++this.generation;this.pending=true;this.notify('傾き操作を確認中…');try{const api=this.host.DeviceOrientationEvent;if(!api)throw Error('この端末では傾きを取得できません。左右ボタンで遊べます');if(this.host.isSecureContext===false)throw Error('傾き操作はHTTPSの公開版でお試しください。左右ボタンは使えます');if(typeof api.requestPermission==='function'){const result=await api.requestPermission();if(result!=='granted')throw Error('傾きの使用が許可されませんでした。左右ボタンで遊べます');}if(serial!==this.generation)return;this.enabled=true;this.recenter();this.host.addEventListener('deviceorientation',this.listener);this.timer=this.host.setTimeout(()=>{if(this.enabled&&this.lastSample===null)this.disable('傾きを取得できませんでした。公開版で試すか左右ボタンをご利用ください');},3000);}catch(error){if(serial===this.generation){this.enabled=false;this.notify(error.message||'傾き操作を使えません。左右ボタンで遊べます');}}finally{if(serial===this.generation){this.pending=false;this.onChange(this);}}}
+clearTimer(){if(this.timer!==null){this.host.clearTimeout(this.timer);this.timer=null;}}
+disable(message='傾き操作OFF · 左右ボタンで移動'){this.generation++;this.pending=false;this.enabled=false;this.clearTimer();this.host.removeEventListener('deviceorientation',this.listener);this.raw=null;this.baseline=null;this.lastSample=null;this.smooth=0;this.angle=null;this.notify(message);}
+recenter(){this.baseline=null;this.raw=null;this.lastSample=null;this.smooth=0;if(this.enabled)this.notify('いつもの持ち方で、スマホを止めてください');}
+orientation(event){if(!this.enabled)return;const screenAngle=this.host.screen?.orientation?.angle??this.host.orientation??0;const angle=((Number(screenAngle)||0)%360+360)%360;let raw;if(angle===90)raw=event.beta;else if(angle===270)raw=typeof event.beta==='number'?-event.beta:null;else raw=typeof event.gamma==='number'?event.gamma*(angle===180?-1:1):null;if(typeof raw!=='number'||!Number.isFinite(raw))return;const now=this.now(),previous=this.lastSample;if(this.angle!==angle){this.angle=angle;this.baseline=null;this.smooth=0;}this.raw=raw;this.lastSample=now;this.clearTimer();if(this.baseline===null){this.baseline=raw;this.smooth=0;this.notify('傾き操作ON · 左右に傾けて移動');return;}const delta=raw-this.baseline,target=Math.abs(delta)<=3?0:clamp(Math.sign(delta)*(Math.abs(delta)-3)/15);const blend=1-Math.exp(-Math.max(1,Math.min(200,now-(previous??now)))/65);this.smooth+=(target-this.smooth)*blend;}
+value(){return this.enabled&&this.lastSample!==null&&this.now()-this.lastSample<=800?this.smooth:0;}
+dispose(){this.disable();}
+}
+return {Input};});
